@@ -9,7 +9,6 @@ dependencies:
   - bokeh==3.4.1
   - chardet
   - itk
-  - gitpython
   - matplotlib
   - numpy
   - pandas
