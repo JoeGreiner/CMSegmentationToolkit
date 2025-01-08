@@ -1,4 +1,4 @@
-name: CMSegmentationToolkit2
+name: CMSegmentationToolkit
 channels:
   - nvidia
   - pytorch
