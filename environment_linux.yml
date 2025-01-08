@@ -1,0 +1,46 @@
+name: CMSegmentationToolkit2
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - bokeh==3.4.1
+  - chardet
+  - itk
+  - gitpython
+  - matplotlib
+  - numpy
+  - pandas
+  - requests
+  - scienceplots
+  - scikit-learn
+  - scipy
+  - seaborn
+  - SimpleITK
+  - scikit-image
+  - tifffile
+  - torchmetrics
+  - pytorch
+  - pytorch-cuda
+  - python-elf
+  - pyqt
+  - plant-seg==1.6.6
+  - tqdm
+  - xlsxwriter
+  - python-wget
+  - openpyxl
+  - ocl-icd-system
+  - pyclesperanto-prototype
+  - vtk
+  - pip
+  - pip:
+      - ffmpeg-python
+      - nnunetv2
+      - blosc2
+      - stardist
+      - csbdeep
+      - matplotlib-scalebar
+      - tensorflow[and-cuda]==2.14
+      - acvl_utils==0.2.2
