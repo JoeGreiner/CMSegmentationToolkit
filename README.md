@@ -1,8 +1,9 @@
 
 # CMSegmentationToolkit
+![GithubSegmentationToolkit](https://github.com/user-attachments/assets/07c53edf-d60d-4103-b80d-555c5aa7708d)
 
 
-This repository contains code for the paper 'A Deep Learning-Enabled Toolkit for the Reconstruction of Ventricular Cardiomyocytes' (under review). We provide a code and GUIs for the deep learning-based restoration and segmentation of 3D confocal microscopy data of WGA-labeled ventricular tissue.
+This repository contains code for the paper 'A Deep Learning-Enabled Toolkit for the Reconstruction of Ventricular Cardiomyocytes' (under review). We provide a code and GUIs for the deep learning-based restoration and segmentation of 3D confocal microscopy data of WGA-labeled ventricular tissue. We recommend proofreading resulting segmentations with [SegmentPuzzler](https://github.com/JoeGreiner/SegmentPuzzler).
 
 ## Installation
 
