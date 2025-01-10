@@ -3,11 +3,46 @@
 ![GithubSegmentationToolkit](https://github.com/user-attachments/assets/07c53edf-d60d-4103-b80d-555c5aa7708d)
 
 
-This repository contains code for the paper 'A Deep Learning-Enabled Toolkit for the Reconstruction of Ventricular Cardiomyocytes' (under review). We provide a code and GUIs for the deep learning-based restoration and segmentation of 3D confocal microscopy data of WGA-labeled ventricular tissue. We recommend proofreading resulting segmentations with [SegmentPuzzler](https://github.com/JoeGreiner/SegmentPuzzler).
+This repository contains code for the paper 'A Deep Learning-Enabled Toolkit for the Reconstruction of Ventricular Cardiomyocytes' (under review). We provide a code and GUIs for the deep learning-based restoration and segmentation of 3D confocal microscopy data of WGA-labeled ventricular tissue. We recommend proofreading the resulting segmentations with [SegmentPuzzler](https://github.com/JoeGreiner/SegmentPuzzler). In case your image data differs a lot from ours or you're not happy with the performance, retraining the models on your data is likely a good idea.
 
 ## Installation
 
-Requirements: Linux (tested on Ubuntu 24.04). Modern PyTorch-compatible graphic card (tested on NVIDIA 4090; most likely a NVIDIA card >10GB RAM should suffice).
+Requirements: Linux, Windows (tested on Ubuntu 24.04; Windows 11 Pro 23H2). Modern PyTorch-compatible graphic card (tested on NVIDIA 4090; 3090, most likely an NVIDIA card >10GB RAM should suffice).
+
+<details>
+<summary>Windows</summary>
+
+There are two environments available: one for PyTorch GPU/TensorFlow CPU, and another for TensorFlow GPU only. TensorFlow is required for the restoration workflow. On Windows, TensorFlow GPU works only with versions <2.11 and cudnn 8.1.0/cuda 11.2, which are incompatible with the latest PyTorch versions. You can switch environments to use TensorFlow (GPU) for restoration, taking advantage of GPU acceleration. Alternatively, you can use the conda_env_windows.yml, which runs the restoration workflow on the CPU. Despite being slower, it handles small/medium stacks in a reasonable time due to the network's size. If unsure, please use conda_env_windows.yml.
+
+Steps:
+1. Clone/download this repository and navigate to the folder.
+``` bash
+git clone https://github.com/JoeGreiner/CMSegmentationToolkit.git
+cd CMSegmentationToolkit
+```
+2. Install the conda environment.
+```
+ conda env create --file conda_env_windows.yml
+OR
+ conda env create --file environment_windows_tf_GPU.yml  (for tensorflow/GPU)
+```
+3. Activate the conda environment.
+```
+conda activate CMSegmentationToolkit
+OR
+conda activate CMSegmentationToolkitTF (for tensorflow/GPU)
+```
+4. Install the package. 
+```
+pip install .
+```
+5. Use the GUIs for restoration/ segmentation.
+```
+python A_restoration_GUI.py
+python B_segmentation_GUI.py
+```
+</details>
+
 
 <details>
 <summary>Linux</summary>
