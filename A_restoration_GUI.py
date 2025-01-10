@@ -218,11 +218,18 @@ class GUI_Restoration(QWidget):
             filename, file_extension = os.path.splitext(filename)
             output_path = os.path.join(self.output_folder.text(), filename + "_restored" + file_extension)
 
-        itk = sitk.GetImageFromArray(prediction)
-        sitk.WriteImage(itk, output_path)
+        itk_img = sitk.GetImageFromArray(prediction)
+        sitk.WriteImage(itk_img, output_path)
         logging.info("Done")
 
     def download_test_data_from_web(self):
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Downloading Test Data")
+        msg.setText("Downloading may take a while. Please be patient.")
+        msg.exec()
+
+
         tmp_directory = os.path.join(os.path.expanduser("~"), "CMSegmentationToolkit", "test_restoration")
         path_to_test_data = download_testfile_restoration(path_to_download_directory=tmp_directory, overwrite=False)
         self.lineWidgetImage.setText(path_to_test_data)

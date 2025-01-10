@@ -6,10 +6,7 @@ channels:
   - defaults
 dependencies:
   - python=3.10
-  - bokeh==3.4.1
   - chardet
-#  - itk
-#  - SimpleITK
   - matplotlib
   - numpy
   - pandas
@@ -22,7 +19,7 @@ dependencies:
   - tifffile
   - torchmetrics
   - pytorch
-  - pytorch-cuda
+  - pytorch-cudacon
   - python-elf
   - pyqt
   - plant-seg==1.6.6
@@ -30,7 +27,6 @@ dependencies:
   - xlsxwriter
   - python-wget
   - openpyxl
-  - ocl-icd-system
   - pyclesperanto-prototype
   - vtk
   - pip
@@ -43,5 +39,5 @@ dependencies:
       - stardist
       - csbdeep
       - matplotlib-scalebar
-      - tensorflow[and-cuda]==2.14
+      - tensorflow
       - acvl_utils==0.2.2
