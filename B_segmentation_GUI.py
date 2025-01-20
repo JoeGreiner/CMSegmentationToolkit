@@ -234,7 +234,12 @@ class DTWSMCGUI(QWidget):
         self.files_to_predict.append(path_to_test_data)
         self.text_files.setText("\n".join(self.files_to_predict))
         self.text_files.show()
-        self.btn_predict.show()  # Show button when files are dropped
+        self.btn_predict.show()
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Downloaded Test Data")
+        msg.setText(f"Test data downloaded to {path_to_test_data}. You can now start the prediction.")
+        msg.exec()
 
 
     def start_prediction(self):

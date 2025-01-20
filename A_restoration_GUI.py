@@ -223,12 +223,23 @@ class GUI_Restoration(QWidget):
         logging.info("Done")
 
     def download_test_data_from_web(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Downloading Test Data")
+        msg.setText("Downloading the test data may take a while. Please be patient.")
+        msg.exec()
+
         tmp_directory = os.path.join(os.path.expanduser("~"), "CMSegmentationToolkit", "test_restoration")
         path_to_test_data = download_testfile_restoration(path_to_download_directory=tmp_directory, overwrite=False)
         self.lineWidgetImage.setText(path_to_test_data)
 
         self.img_added = True
         self.startButton.show()
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Downloaded Test Data")
+        msg.setText(f"Test data downloaded to {path_to_test_data}. You can now start the prediction.")
+        msg.exec()
+
 
 
 def run_GUI():
