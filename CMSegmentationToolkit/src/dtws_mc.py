@@ -394,13 +394,18 @@ def run_freiburg_mc(input_file, folder_output=None,
         folder_output = os.path.dirname(input_file)
     if not os.path.exists(folder_output):
         os.makedirs(folder_output)
-    stackname = os.path.basename(input_file).replace('.nrrd', '')
+    filename = os.path.basename(input_file)
+    file_ext = os.path.splitext(filename)[-1]
+    if file_ext == '.gz':
+        if '.nii.gz' in filename:
+            file_ext = '.nii.gz'
+    stackname = os.path.basename(input_file).replace(file_ext, '')
 
     folder_bnd = os.path.join(folder_output, f'prediction_{bnd_dataset_id}')
     folder_mask = os.path.join(folder_output, f'prediction_{mask_dataset_id}')
     folder_combined = os.path.join(folder_output, 'prediction_combined')
 
-    filename_nifty = os.path.basename(input_file).replace('.nrrd', '_0000.nii.gz')
+    filename_nifty = os.path.basename(input_file).replace(file_ext, '_0000.nii.gz')
     input_file_nifty = os.path.join(folder_output, filename_nifty)
     if not os.path.exists(input_file_nifty):
         convert_nrrd_to_nnu_nifty(input_file, input_file_nifty)
