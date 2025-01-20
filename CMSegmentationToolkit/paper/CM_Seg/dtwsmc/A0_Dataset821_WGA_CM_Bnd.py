@@ -89,7 +89,7 @@ if __name__ == '__main__':
     # setting up nnU-Net folders
     out_base = join(nnUNet_raw, foldername)
 
-    # delete rxisting war base
+    # delete existing dataset folder, if exists
     if os.path.exists(out_base):
         shutil.rmtree(out_base)
 
@@ -101,8 +101,6 @@ if __name__ == '__main__':
     maybe_mkdir_p(path_label_dir)
     maybe_mkdir_p(path_img_dir_test)
     maybe_mkdir_p(path_label_dir_test)
-
-
 
     jobList = []
 
