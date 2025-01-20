@@ -36,7 +36,7 @@ def download_nnu_model(path_to_download_directory: str, overwrite: bool = False)
     url_models = 'https://www.iekm.uniklinik-freiburg.de/storage/s/mBYCCLDEW8xjTPj/download'
     download(url_models, os.path.join(path_to_download_directory, 'nnu_models.zip'), overwrite)
     unzip_file(os.path.join(path_to_download_directory, 'nnu_models.zip'), path_to_download_directory)
-    return os.path.join(path_to_download_directory, 'nnu_best_model_files')
+    return os.path.join(path_to_download_directory, 'nnu_models')
 
 
 def download_testfiles(path_to_download_directory: str, overwrite: bool = False):
