@@ -171,7 +171,9 @@ def run_multicut(path_to_prediction, path_to_watershed, output_folder, betas=[0.
 
 
 def calculate_two_pass_watershed(boundary_input_zyx, boundary_threshold, sigma_seeds=2.0,
-                                 n_threads=None, verbose=True):
+                                 n_threads=None, verbose=True, min_size=100,
+                                 # compactness=0
+                                 ):
 
     block_shape = (64, 512, 512)
     halo = (12, 48, 48)
@@ -182,6 +184,8 @@ def calculate_two_pass_watershed(boundary_input_zyx, boundary_threshold, sigma_s
     assert boundary_threshold >= 0, 'boundary threshold has to be >= 0'
     assert boundary_threshold <= 1, 'boundary threshold has to be <= 1'
     assert sigma_seeds >= 0, 'sigma seeds has to be >= 0'
+    assert min_size >= 0, 'min size has to be >= 0'
+    # assert compactness >= 0, 'compactness has to be >= 0'
 
     if boundary_input_zyx.shape[0] < block_shape[0]:
         block_shape = (boundary_input_zyx.shape[0], block_shape[1], block_shape[2])
@@ -197,7 +201,10 @@ def calculate_two_pass_watershed(boundary_input_zyx, boundary_threshold, sigma_s
         watershed, _ = blockwise_two_pass_watershed(boundary_input_zyx, block_shape, halo,
                                                     verbose=verbose, threshold=boundary_threshold,
                                                     sigma_seeds=sigma_seeds,
-                                                    n_threads=n_threads)
+                                                    n_threads=n_threads,
+                                                    min_size=min_size,
+                                                    # compactness=compactness
+                                                    )
     except AssertionError:
         print('Blockwise watershed failed, trying again with smaller block shape')
         block_shape = (48, 256, 256)
@@ -205,7 +212,14 @@ def calculate_two_pass_watershed(boundary_input_zyx, boundary_threshold, sigma_s
         watershed, _ = blockwise_two_pass_watershed(boundary_input_zyx, block_shape, halo,
                                                     verbose=verbose, threshold=boundary_threshold,
                                                     sigma_seeds=sigma_seeds,
-                                                    n_threads=n_threads)
+                                                    n_threads=n_threads,
+                                                    min_size=min_size,
+                                                    # compactness=compactness
+                                                    )
+
+    labels = np.unique(watershed)
+    logging.info(f'Initial watershed: {len(labels)} segments')
+
     return watershed
 
 def read_nnu_proba(input_file, channel=1):
@@ -220,7 +234,10 @@ def run_watershed(path_prediction_in,
                   sigma_seeds=2.0,
                   export_non_pmap_supervoxels=True,
                   skip_if_ws_exists=True,
-                  n_threads=12):
+                  n_threads=None,
+                  min_size=100,
+                  # compactness=0,
+                  ):
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     logging.info(f'Running watershed on {path_prediction_in}')
 
@@ -262,9 +279,14 @@ def run_watershed(path_prediction_in,
         logging.info('Boundary map already in [0, 1]')
         boundary_input_zyx = boundary_input_zyx.astype(np.float32)
 
-    logging.info(f'Running watershed with threshold {boundary_threshold} and sigma seeds {sigma_seeds} and {n_threads} threads')
+    if n_threads is None:
+        n_threads = os.cpu_count()
+    logging.info(f'Running watershed with threshold {boundary_threshold}'
+                 f' and sigma seeds {sigma_seeds} and {n_threads} threads and min size {min_size}')
     watershed = calculate_two_pass_watershed(boundary_input_zyx, boundary_threshold, sigma_seeds=sigma_seeds,
-                                             n_threads=n_threads)
+                                             n_threads=n_threads, min_size=min_size,
+                                             # compactness=compactness,
+                                             )
     if swapped_axes:
         logging.info('Swapping axes 0 and 2 back')
         logging.info(f'shape before swap: {watershed.shape}')
@@ -304,9 +326,9 @@ def convert_nrrd_to_nnu_nifty(path_input, path_output):
 
 
 # mask_id=self.mask_id,
-def run_nnu(input_nifty, output_folder, dataset_id, disable_tta=True, folds=[0, 1, 2, 3, 4], step_size=0.5):
+def run_nnu(input_nifty, output_folder, dataset_id, disable_tta=True, folds=[0, 1, 2, 3, 4], step_size=0.5, plan='nnUNetPlans'):
     # dataset_id: 821 bnd, 822 mask
-    assert dataset_id in [821, 822], 'dataset_id has to be 821 or 822'
+    # assert dataset_id in [821, 822], 'dataset_id has to be 821 or 822'
 
     assert os.path.exists(input_nifty), f'File not found: {input_nifty}'
     # ass nifty nii gz
@@ -326,10 +348,12 @@ def run_nnu(input_nifty, output_folder, dataset_id, disable_tta=True, folds=[0, 
         for fold in folds:
             fold_cmd += f' {fold}'
         fold_cmd += ' '
+    if not plan:
+        plan_cmd = ''
+    else:
+        plan_cmd = f' -p {plan} '
 
-
-
-    cmd = (f'nnUNetv2_predict -i {input_folder} -o {output_folder} {fold_cmd}'
+    cmd = (f'nnUNetv2_predict -i {input_folder} -o {output_folder} {fold_cmd} {plan_cmd}'
            f'-c 3d_fullres -d {dataset_id} --verbose --save_probabilities -step_size {step_size}')
 
     if disable_tta:
@@ -340,6 +364,22 @@ def run_nnu(input_nifty, output_folder, dataset_id, disable_tta=True, folds=[0, 
 
     logging.info(f'Running command: {cmd}')
     subprocess.run(cmd, shell=True, check=True)
+
+
+def convert_nnu_bnd_to_nrrd(input_file, output_file, skip_if_output_exists=True):
+    if not os.path.exists(input_file):
+        logging.warning(f'File not found: {input_file}')
+        return
+    if skip_if_output_exists and os.path.exists(output_file):
+        logging.info(f'Skipping {output_file} as it already exists')
+        return
+    if not os.path.exists(os.path.dirname(output_file)):
+        os.makedirs(os.path.dirname(output_file))
+
+    bnd = read_nnu_proba(input_file, channel=1)
+    itk.imwrite(itk.GetImageFromArray(bnd), output_file, compression=True)
+    logging.info(f'Saved {output_file}')
+
 
 def combined_bnd_and_cm_mask(folder_bnd, folder_mask, output_folder, skip_if_combined_file_exists=True):
     # glob npz file bnd
@@ -383,17 +423,36 @@ def combined_bnd_and_cm_mask(folder_bnd, folder_mask, output_folder, skip_if_com
 def run_freiburg_mc(input_file, folder_output=None,
                     betas=[0.075],
                     betas2=[],
-                    folds=[0, 1, 2, 3, 4],
                     relabel_seg=True,
                     bnd_dataset_id=821,
                     mask_dataset_id=822,
                     disable_tta=True,
                     step_size=0.5,
+                    n_threads=None,
+                    min_size=100,
+                    # compactness=0,
+                    folds_bnd=[0,1,2,3,4],
+                    folds_mask=[0,1,2,3,4],
+                    plan_bnd='nnUNetPlans',
+                    plan_mask='nnUNetPlans',
+                    run_bnd_only_ws=False,
                     ):
     if folder_output is None:
         folder_output = os.path.dirname(input_file)
     if not os.path.exists(folder_output):
         os.makedirs(folder_output)
+    if isinstance(folds_bnd, str):
+        if ',' in folds_bnd:
+            folds_bnd = [f for f in folds_bnd.split(',')]
+        else:
+            folds_bnd = [folds_bnd]
+    if isinstance(folds_mask, str):
+        if ',' in folds_mask:
+            folds_mask = [f for f in folds_mask.split(',')]
+        else:
+            folds_mask = [folds_mask]
+
+
     filename = os.path.basename(input_file)
     file_ext = os.path.splitext(filename)[-1]
     if file_ext == '.gz':
@@ -411,9 +470,21 @@ def run_freiburg_mc(input_file, folder_output=None,
         convert_nrrd_to_nnu_nifty(input_file, input_file_nifty)
 
     # first: predict bnd
-    run_nnu(input_nifty=input_file_nifty, output_folder=folder_bnd, dataset_id=bnd_dataset_id, folds=folds, disable_tta=disable_tta, step_size=step_size)
+    run_nnu(input_nifty=input_file_nifty, output_folder=folder_bnd, dataset_id=bnd_dataset_id, folds=folds_bnd, disable_tta=disable_tta, step_size=step_size,
+            plan=plan_bnd)
     # predict mask
-    run_nnu(input_nifty=input_file_nifty, output_folder=folder_mask, dataset_id=mask_dataset_id, folds=folds, disable_tta=disable_tta, step_size=step_size)
+    run_nnu(input_nifty=input_file_nifty, output_folder=folder_mask, dataset_id=mask_dataset_id, folds=folds_mask, disable_tta=disable_tta, step_size=step_size,
+            plan=plan_mask)
+
+    if run_bnd_only_ws:
+        path_to_nnu_bnd_npz = os.path.join(folder_bnd, f'{stackname}.npz')
+        output_path_bnd = os.path.join(folder_bnd, f'{stackname}.nrrd')
+        convert_nnu_bnd_to_nrrd(path_to_nnu_bnd_npz, output_path_bnd)
+        output_path_bnd_ws = os.path.join(folder_bnd, f'{stackname}_ws.nrrd')
+        input_ws_bnd_pmap = os.path.join(folder_bnd, f'{stackname}_ws_without_pmap.nrrd')
+        output_mc_folder_bnd = os.path.join(folder_bnd, f'{stackname}_MultiCut')
+        run_watershed(path_prediction_in=output_path_bnd, path_ws_out=output_path_bnd_ws, n_threads=n_threads, min_size=min_size)
+        run_multicut(path_to_prediction=output_path_bnd, path_to_watershed=input_ws_bnd_pmap, output_folder=output_mc_folder_bnd, betas=betas)
 
     # merge both
     combined_bnd_and_cm_mask(folder_bnd, folder_mask, folder_combined)
@@ -421,7 +492,9 @@ def run_freiburg_mc(input_file, folder_output=None,
     # run ws
     input_ws_boundary = os.path.join(folder_combined, f'{stackname}.nrrd')
     output_ws_boundary = os.path.join(folder_combined, f'{stackname}_ws.nrrd')
-    run_watershed(input_ws_boundary, output_ws_boundary)
+    run_watershed(input_ws_boundary, output_ws_boundary, n_threads=n_threads, min_size=min_size,
+                  # compactness=compactness
+                  )
 
     # run mc
     input_mc = os.path.join(folder_combined, f'{stackname}.nrrd')
@@ -430,12 +503,12 @@ def run_freiburg_mc(input_file, folder_output=None,
     run_multicut(input_mc, input_ws, output_mc_folder, betas=betas)
 
     # run 2nd multicut, but on the multicut itself
-    all_mcs = glob.glob(os.path.join(output_mc_folder, f'*_pmap_zero.nrrd'))
-    for mc in tqdm(all_mcs):
-        stackname = os.path.basename(mc).replace('_pmap_zero.nrrd', '')
-        output_folder = os.path.join(output_mc_folder, f'{stackname}_MultiCut2')
-        run_multicut(path_to_prediction=input_mc, path_to_watershed=mc, output_folder=output_folder, betas=betas2,
-                     relabel_seg=relabel_seg)
+    # all_mcs = glob.glob(os.path.join(output_mc_folder, f'*_pmap_zero.nrrd'))
+    # for mc in tqdm(all_mcs):
+    #     stackname = os.path.basename(mc).replace('_pmap_zero.nrrd', '')
+    #     output_folder = os.path.join(output_mc_folder, f'{stackname}_MultiCut2')
+    #     run_multicut(path_to_prediction=input_mc, path_to_watershed=mc, output_folder=output_folder, betas=betas2,
+    #                  relabel_seg=relabel_seg)
 
 
 if __name__  == '__main__':

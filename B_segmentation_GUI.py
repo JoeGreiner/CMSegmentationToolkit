@@ -23,6 +23,8 @@ from CMSegmentationToolkit.src.dtws_mc import run_freiburg_mc
 from CMSegmentationToolkit.src.fileIO.download_files import download_nnu_model, download_testfile_segmentation
 
 
+
+
 def run_prediction(
     input_files,
     nnunet_results_path,
@@ -31,7 +33,15 @@ def run_prediction(
     mask_id,
     step_size,
     disable_tta,
-    beta
+    beta,
+    n_threads,
+    min_size,
+    # compactness=0,
+    folds_bnd,
+    folds_mask,
+    plan_bnd='nnUNetPlans',
+    plan_mask='nnUNetPlans',
+    run_bnd_only_ws=False,
 ):
     os.environ["nnUNet_results"] = nnunet_results_path
     os.environ["nnUNet_raw"] = ""
@@ -46,10 +56,17 @@ def run_prediction(
             mask_dataset_id=mask_id,
             betas=[beta],
             step_size=step_size,
-            disable_tta=disable_tta
+            disable_tta=disable_tta,
+            n_threads=n_threads,
+            min_size=min_size,
+            # compactness=compactness,
+            folds_bnd=folds_bnd,
+            folds_mask=folds_mask,
+            plan_bnd=plan_bnd,
+            plan_mask=plan_mask,
+            run_bnd_only_ws=run_bnd_only_ws
         )
         logging.info(f"Completed MC segmentation on {input_file}")
-
 
 class DTWSMCGUI(QWidget):
     def __init__(self):
@@ -124,10 +141,43 @@ class DTWSMCGUI(QWidget):
         self.spin_bnd_id.valueChanged.connect(self.saveBndID)
         self.spin_mask_id.valueChanged.connect(self.saveMaskID)
 
+        lbl_folds_bnd = QLabel("Folds:")
+        self.folds_bnd = QLineEdit()
+        self.folds_bnd.setPlaceholderText("0,1,2,3,4")
+        self.folds_bnd.setToolTip("Comma separated list of folds to use for Bnd model, 0-5 or 'all'")
+        self.folds_bnd.textChanged.connect(self.saveFoldsBnd)
+
+        lbl_folds_mask = QLabel("Folds:")
+        self.folds_mask = QLineEdit()
+        self.folds_mask.setPlaceholderText("0,1,2,3,4")
+        self.folds_mask.setToolTip("Comma separated list of folds to use for Mask model, 0-5 or 'all'")
+        self.folds_mask.textChanged.connect(self.saveFoldsMask)
+
         hbox_model_ids.addWidget(lbl_bnd_id)
         hbox_model_ids.addWidget(self.spin_bnd_id)
+        hbox_model_ids.addWidget(lbl_folds_bnd)
+        hbox_model_ids.addWidget(self.folds_bnd)
         hbox_model_ids.addWidget(lbl_mask_id)
         hbox_model_ids.addWidget(self.spin_mask_id)
+        hbox_model_ids.addWidget(lbl_folds_mask)
+        hbox_model_ids.addWidget(self.folds_mask)
+
+        self.planner_hbox = QHBoxLayout()
+
+        self.planner_bnd = QLabel("nnU-Net Plans Bnd:")
+        self.qline_bnd_plans = QLineEdit()
+        self.qline_bnd_plans.setPlaceholderText("nnUNetPlans")
+        self.qline_bnd_plans.textChanged.connect(self.saveBndPlans)
+        self.planner_mask = QLabel("nnU-Net Plans Mask:")
+        self.qline_mask_plans = QLineEdit()
+        self.qline_mask_plans.setPlaceholderText("nnUNetPlans")
+        self.qline_mask_plans.textChanged.connect(self.saveMaskPlans)
+
+        self.planner_hbox.addWidget(self.planner_bnd)
+        self.planner_hbox.addWidget(self.qline_bnd_plans)
+        self.planner_hbox.addWidget(self.planner_mask)
+        self.planner_hbox.addWidget(self.qline_mask_plans)
+        layout.addLayout(self.planner_hbox)
 
         hbox_overlap_tta = QHBoxLayout()
         layout.addLayout(hbox_overlap_tta)
@@ -154,6 +204,54 @@ class DTWSMCGUI(QWidget):
         hbox_overlap_tta.addWidget(self.cb_disable_tta)
         hbox_overlap_tta.addWidget(lbl_beta)
         hbox_overlap_tta.addWidget(self.spin_beta)
+
+        # limit_cpu_threads integer input
+        label_n_threads_layout = QHBoxLayout()
+        label_n_threads = QLabel("Number Threads:")
+        self.n_threads_spinbox = QSpinBox()
+        self.n_threads_spinbox.setRange(1, os.cpu_count())
+        self.n_threads_spinbox.setValue(os.cpu_count())
+
+        label_n_threads_layout.addWidget(label_n_threads)
+        label_n_threads_layout.addWidget(self.n_threads_spinbox)
+        self.n_threads_spinbox.valueChanged.connect(self.saveNThreads)
+
+        self.min_size_label = QLabel("Watershed Min Size:")
+        self.min_size_spinbox = QSpinBox()
+        self.min_size_spinbox.setRange(0, 1000000)
+        self.min_size_spinbox.setValue(100)
+        self.min_size_spinbox.valueChanged.connect(self.saveMinSize)
+        label_n_threads_layout.addWidget(self.min_size_label)
+        label_n_threads_layout.addWidget(self.min_size_spinbox)
+
+        # # compactness
+        # self.compactness_label = QLabel("Compactness:")
+        # self.compactness_spinbox = QDoubleSpinBox()
+        # self.compactness_spinbox.setRange(0, 100)
+        # self.compactness_spinbox.setSingleStep(0.1)
+        # self.compactness_spinbox.setValue(0)
+        # self.compactness_spinbox.valueChanged.connect(self.saveCompactness)
+        # label_n_threads_layout.addWidget(self.compactness_label)
+        # label_n_threads_layout.addWidget(self.compactness_spinbox)
+
+        layout.addLayout(label_n_threads_layout)
+
+        # run additional bnd only watershed
+        add_ws_layout = QHBoxLayout()
+        # check only
+        label_bnd_only_ws = QLabel("Run additional Bnd-only-watershed:")
+        self.cb_add_ws = QCheckBox()
+        # save
+        self.cb_add_ws.stateChanged.connect(self.saveAddBndWS)
+        add_ws_layout.addWidget(label_bnd_only_ws)
+        add_ws_layout.addWidget(self.cb_add_ws)
+        layout.addLayout(add_ws_layout)
+
+        btn_defaults = QPushButton("Restore Defaults")
+        btn_defaults.clicked.connect(self.restore_defaults)
+        layout.addWidget(btn_defaults)
+
+
 
         self.drop_label = QLabel("drop 3D WGA image (ITK-readable: .tif, .nrrd, ...) here\n expected axes: ZYX", self)
 
@@ -198,13 +296,17 @@ class DTWSMCGUI(QWidget):
         self.drop_label.setStyleSheet("border: 2px dashed #aaa; color: black;")
 
     def select_output_folder(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        default_path = self.settings.value("outputPathSegmentation", "")
+        dir_path = QFileDialog.getExistingDirectory(self, "Select Output Folder", default_path,
+                                                    QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog)
         if dir_path:
             self.le_output.setText(dir_path)
             self.saveOutputPath()
 
     def select_nnunet_folder(self):
-        dir_path = QFileDialog.getExistingDirectory(self, "Select nnUNet Results Folder")
+        default_path = self.settings.value("nnuResultsPath", "")
+        dir_path = QFileDialog.getExistingDirectory(self, "Select nnUNet Results Folder", default_path,
+                                                    QFileDialog.ShowDirsOnly | QFileDialog.DontUseNativeDialog)
         if dir_path:
             self.le_nnunet.setText(dir_path)
             self.saveNnuResultsPath()
@@ -258,7 +360,15 @@ class DTWSMCGUI(QWidget):
             mask_id=self.spin_mask_id.value(),
             step_size=self.spin_overlap.value(),
             disable_tta=self.cb_disable_tta.isChecked(),
-            beta=self.spin_beta.value()
+            beta=self.spin_beta.value(),
+            n_threads=self.n_threads_spinbox.value(),
+            min_size=self.min_size_spinbox.value(),
+            # compactness=self.compactness_spinbox.value(),
+            folds_bnd=self.folds_bnd.text(),
+            folds_mask=self.folds_mask.text(),
+            plan_bnd=self.qline_bnd_plans.text(),
+            plan_mask=self.qline_mask_plans.text(),
+            run_bnd_only_ws=self.cb_add_ws.isChecked()
         )
         self.prediction_done()
 
@@ -286,6 +396,16 @@ class DTWSMCGUI(QWidget):
             self.spin_bnd_id.setValue(821)
             self.spin_mask_id.setValue(822)
 
+        folds_bnd = self.settings.value("foldsBnd", "0,1,2,3,4")
+        self.folds_bnd.setText(folds_bnd)
+        folds_mask = self.settings.value("foldsMask", "0,1,2,3,4")
+        self.folds_mask.setText(folds_mask)
+
+        bnd_plans = self.settings.value("bndPlans", "nnUNetPlans")
+        self.qline_bnd_plans.setText(bnd_plans)
+        mask_plans = self.settings.value("maskPlans", "nnUNetPlans")
+        self.qline_mask_plans.setText(mask_plans)
+
         overlap_val = self.settings.value("overlapVal", 0.5)
         try:
             self.spin_overlap.setValue(float(overlap_val))
@@ -304,6 +424,36 @@ class DTWSMCGUI(QWidget):
             self.spin_beta.setValue(float(beta_val))
         except ValueError:
             self.spin_beta.setValue(0.075)
+
+        n_threads = self.settings.value("nThreads", os.cpu_count())
+        self.n_threads_spinbox.setValue(int(n_threads))
+
+        min_size = self.settings.value("minSize", 1000)
+        self.min_size_spinbox.setValue(int(min_size))
+
+        add_bnd_ws = self.settings.value("addBndWS", True)
+        # cast string to boolean
+        add_bnd_ws = add_bnd_ws.lower() == "true"
+        self.cb_add_ws.setChecked(add_bnd_ws)
+
+        # compactness = self.settings.value("compactness", 0)
+        # self.compactness_spinbox.setValue(float(compactness))
+
+    def restore_defaults(self):
+        self.spin_bnd_id.setValue(821)
+        self.spin_mask_id.setValue(822)
+        self.spin_overlap.setValue(0.5)
+        self.cb_disable_tta.setChecked(False)
+        self.spin_beta.setValue(0.075)
+        self.n_threads_spinbox.setValue(os.cpu_count())
+        self.min_size_spinbox.setValue(100)
+        # self.compactness_spinbox.setValue(0)
+        self.folds_bnd.setText("0,1,2,3,4")
+        self.folds_mask.setText("0,1,2,3,4")
+        self.qline_bnd_plans.setText("nnUNetPlans")
+        self.qline_mask_plans.setText("nnUNetPlans")
+        self.cb_add_ws.setChecked(False)
+
 
     def saveOutputPath(self):
         self.settings.setValue("outputPathSegmentation", self.le_output.text())
@@ -325,6 +475,31 @@ class DTWSMCGUI(QWidget):
 
     def saveBetaVal(self):
         self.settings.setValue("betaVal", self.spin_beta.value())
+
+    def saveNThreads(self):
+        self.settings.setValue("nThreads", self.n_threads_spinbox.value())
+
+    def saveMinSize(self):
+        self.settings.setValue("minSize", self.min_size_spinbox.value())
+
+    def saveAddBndWS(self):
+        self.settings.setValue("addBndWS", self.cb_add_ws.isChecked())
+
+    # def saveCompactness(self):
+    #     self.settings.setValue("compactness", self.compactness_spinbox.value())
+
+    def saveFoldsBnd(self):
+        self.settings.setValue("foldsBnd", self.folds_bnd.text())
+
+    def saveFoldsMask(self):
+        self.settings.setValue("foldsMask", self.folds_mask.text())
+
+    def saveBndPlans(self):
+        self.settings.setValue("bndPlans", self.qline_bnd_plans.text())
+
+    def saveMaskPlans(self):
+        self.settings.setValue("maskPlans", self.qline_mask_plans.text())
+
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

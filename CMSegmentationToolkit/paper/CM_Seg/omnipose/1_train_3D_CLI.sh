@@ -1,0 +1,2 @@
+# github repo says to not use RADAM
+omnipose --use_gpu --train --dir /mnt/work/data/CM_Seg_Paper_24/omnipose/train --mask_filter _masks --n_epochs 1000 --pretrained_model None --save_every 50 --learning_rate 0.01 --save_each --verbose --dim 3 --batch_size 4 --diameter 0 --nclasses 3 --tyx 80,80,80
