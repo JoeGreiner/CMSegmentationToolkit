@@ -69,7 +69,36 @@ pip install .
 ```
 python A_restoration_GUI.py
 python B_segmentation_GUI.py
+python C_analyse_morphology_GUI.py
 ```
+</details>
+
+
+## GUIs
+<details>
+<summary>DTWS-MC Cardiomyocyte Segmentation</summary>
+
+https://github.com/user-attachments/assets/7fdaae7f-f879-4341-b6d8-7c20df6e2f9b
+
+(Please be aware that DTWS-MC may take some while until the processing is finished. In the demo, we run without test time augmentation and ensembling, which accelerates the segmentation. Proofreading at the end with SegmentPuzzler is optional, but recommended.)
+</details>
+
+<details>
+<summary>WGA Image Restoration with CARE</summary>
+
+ 
+https://github.com/user-attachments/assets/1fb99faf-d9a8-4085-bf19-a24650fda5fc
+
+
+</details>
+<details>
+<summary>Cardiomyocyte Morphology Analysis</summary>
+
+ 
+https://github.com/user-attachments/assets/bb4d4d24-30d3-44b8-b074-9a7c400e759f
+
+
+(Opening in SegmentPuzzler is just to visualise the loaded data, but it's not necessary for the workflow.)
 </details>
 
 ## Acknowledgements
