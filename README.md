@@ -40,6 +40,7 @@ pip install .
 ```
 python A_restoration_GUI.py
 python B_segmentation_GUI.py
+python C_analyse_morphology_GUI.py
 ```
 </details>
 
