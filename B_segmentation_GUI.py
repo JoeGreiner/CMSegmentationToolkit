@@ -134,9 +134,11 @@ class DTWSMCGUI(QWidget):
         lbl_bnd_id = QLabel("Bnd Model ID:")
         self.spin_bnd_id = QSpinBox()
         self.spin_bnd_id.setRange(0, 9999)
+        self.spin_bnd_id.setValue(821)
         lbl_mask_id = QLabel("Mask Model ID:")
         self.spin_mask_id = QSpinBox()
         self.spin_mask_id.setRange(0, 9999)
+        self.spin_mask_id.setValue(822)
 
         self.spin_bnd_id.valueChanged.connect(self.saveBndID)
         self.spin_mask_id.valueChanged.connect(self.saveMaskID)
@@ -144,12 +146,14 @@ class DTWSMCGUI(QWidget):
         lbl_folds_bnd = QLabel("Folds:")
         self.folds_bnd = QLineEdit()
         self.folds_bnd.setPlaceholderText("0,1,2,3,4")
+        self.folds_bnd.setText("0,1,2,3,4")  # default folds
         self.folds_bnd.setToolTip("Comma separated list of folds to use for Bnd model, 0-5 or 'all'")
         self.folds_bnd.textChanged.connect(self.saveFoldsBnd)
 
         lbl_folds_mask = QLabel("Folds:")
         self.folds_mask = QLineEdit()
         self.folds_mask.setPlaceholderText("0,1,2,3,4")
+        self.folds_mask.setText("0,1,2,3,4")  # default folds
         self.folds_mask.setToolTip("Comma separated list of folds to use for Mask model, 0-5 or 'all'")
         self.folds_mask.textChanged.connect(self.saveFoldsMask)
 
@@ -167,10 +171,12 @@ class DTWSMCGUI(QWidget):
         self.planner_bnd = QLabel("nnU-Net Plans Bnd:")
         self.qline_bnd_plans = QLineEdit()
         self.qline_bnd_plans.setPlaceholderText("nnUNetPlans")
+        self.qline_bnd_plans.setText("nnUNetPlans")  # default plans
         self.qline_bnd_plans.textChanged.connect(self.saveBndPlans)
         self.planner_mask = QLabel("nnU-Net Plans Mask:")
         self.qline_mask_plans = QLineEdit()
         self.qline_mask_plans.setPlaceholderText("nnUNetPlans")
+        self.qline_mask_plans.setText("nnUNetPlans")
         self.qline_mask_plans.textChanged.connect(self.saveMaskPlans)
 
         self.planner_hbox.addWidget(self.planner_bnd)
@@ -196,8 +202,8 @@ class DTWSMCGUI(QWidget):
         self.spin_beta = QDoubleSpinBox()
         self.spin_beta.setRange(0, 1)
         self.spin_beta.setSingleStep(0.001)
-        self.spin_beta.setValue(0.075)
         self.spin_beta.setDecimals(3)
+        self.spin_beta.setValue(0.075)
         self.spin_beta.valueChanged.connect(self.saveBetaVal)
 
         hbox_overlap_tta.addWidget(self.spin_overlap)
@@ -319,11 +325,15 @@ class DTWSMCGUI(QWidget):
         msg.setText("Downloading the model may take a while. Please be patient.")
         msg.exec()
 
-        model_folder = download_nnu_model(tmp_directory)
+        model_folder = download_nnu_model(tmp_directory, overwrite=False)
         self.le_nnunet.setText(model_folder)
         if model_folder:
             self.le_nnunet.setText(model_folder)
             self.saveNnuResultsPath()
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Downloaded Model")
+        msg.setText(f"Model downloaded to {model_folder}.")
 
     def download_test_data(self):
         msg = QMessageBox()
@@ -352,6 +362,11 @@ class DTWSMCGUI(QWidget):
             QMessageBox.warning(self, "Warning", "No output folder selected.")
             return
 
+        msg = QMessageBox()
+        msg.setWindowTitle("Starting Prediction")
+        msg.setText(f"Starting the prediction process for {len(self.files_to_predict)} files.\n")
+        msg.exec()
+
         run_prediction(
             input_files=self.files_to_predict,
             nnunet_results_path=self.le_nnunet.text(),
@@ -373,7 +388,12 @@ class DTWSMCGUI(QWidget):
         self.prediction_done()
 
     def prediction_done(self):
-        QMessageBox.information(self, "Finished", "All predictions have completed.")
+        msg = QMessageBox()
+        msg.setWindowTitle("Prediction Completed")
+        msg.setText("The prediction process has been completed successfully.")
+        msg.exec()
+
+
 
     def loadSettings(self):
         logging.info("Loading settings")

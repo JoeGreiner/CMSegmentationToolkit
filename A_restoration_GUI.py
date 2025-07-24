@@ -101,6 +101,7 @@ class GUI_Restoration(QWidget):
 
         self.setAcceptDrops(True)
 
+        self.settings = QSettings("JoeGreiner", "CMSegmentationToolkit")
         self.loadSettings()
 
 
@@ -168,7 +169,6 @@ class GUI_Restoration(QWidget):
             self.settings.setValue("modelPath", dir_path)
 
     def loadSettings(self):
-        self.settings = QSettings("JoeGreiner", "CMSegmentationToolkit")
         model_path = self.settings.value("modelPath")
         if model_path:
             self.model_folder.setText(model_path)
