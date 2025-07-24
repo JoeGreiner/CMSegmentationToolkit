@@ -68,6 +68,30 @@ def download_testfile_segmentation(path_to_download_directory: str, overwrite: b
     download(url_testfiles, os.path.join(path_to_download_directory, 'test_data.nrrd'), overwrite)
     return os.path.join(path_to_download_directory, 'test_data.nrrd')
 
+def download_testfile_morph_analysis(path_to_download_directory: str, overwrite: bool = False):
+    logging.info(f'Downloading testfiles to {path_to_download_directory}')
+    if not os.path.exists(path_to_download_directory):
+        logging.info(f'Creating directory {path_to_download_directory}')
+        os.makedirs(path_to_download_directory)
+    url_testfiles = 'https://www.iekm.uniklinik-freiburg.de/storage/s/PQEST9E99SWMA3w/download'
+    download(url_testfiles, os.path.join(path_to_download_directory, 'test_data_morph.nrrd'), overwrite)
+    return os.path.join(path_to_download_directory, 'test_data_morph.nrrd')
+
+def download_testfile_TATS_analysis(path_to_download_directory: str, overwrite: bool = False):
+    logging.info(f'Downloading testfiles to {path_to_download_directory}')
+    if not os.path.exists(path_to_download_directory):
+        logging.info(f'Creating directory {path_to_download_directory}')
+        os.makedirs(path_to_download_directory)
+    url_testfile_1 = 'https://www.iekm.uniklinik-freiburg.de/storage/s/KnEJGFXNxT3nLZn/download'
+    download(url_testfile_1, os.path.join(path_to_download_directory, 'test_seg.nrrd'), overwrite)
+    url_testfile_2 = 'https://www.iekm.uniklinik-freiburg.de/storage/s/aTnTgKi7aRoBKFj/download'
+    download(url_testfile_2, os.path.join(path_to_download_directory, 'test_wga.nrrd'), overwrite)
+    return {
+        'segmentation': os.path.join(path_to_download_directory, 'test_seg.nrrd'),
+        'wga': os.path.join(path_to_download_directory, 'test_wga.nrrd')
+    }
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # path_to_model = download_care_model('models', overwrite=True)
