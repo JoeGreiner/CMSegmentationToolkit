@@ -41,6 +41,7 @@ pip install .
 python A_restoration_GUI.py
 python B_segmentation_GUI.py
 python C_analyse_morphology_GUI.py
+D_analyse_TATS_distance_GUI.py
 ```
 </details>
 
@@ -71,6 +72,7 @@ pip install .
 python A_restoration_GUI.py
 python B_segmentation_GUI.py
 python C_analyse_morphology_GUI.py
+D_analyse_TATS_distance_GUI.py
 ```
 </details>
 
@@ -108,7 +110,7 @@ https://github.com/user-attachments/assets/bb4d4d24-30d3-44b8-b074-9a7c400e759f
 
 https://github.com/user-attachments/assets/7ddcda0e-d019-42c8-8577-41f938c0ea19
 
-
+(Please double-check the automatic thresholding works as expected by inspecting the distancemap. I've not yet see it fail, but I would always double-check on new data.)
 </details>
 
 
