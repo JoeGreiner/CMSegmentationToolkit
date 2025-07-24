@@ -102,6 +102,16 @@ https://github.com/user-attachments/assets/bb4d4d24-30d3-44b8-b074-9a7c400e759f
 (Opening in SegmentPuzzler is just to visualise the loaded data, but it's not necessary for the workflow.)
 </details>
 
+<details>
+<summary>Cardiomyocyte Distance To Nearest TATS Analysis</summary>
+
+
+https://github.com/user-attachments/assets/7ddcda0e-d019-42c8-8577-41f938c0ea19
+
+
+</details>
+
+
 ## Acknowledgements
 We are further really thankful for the fantastic software packages we build upon. These include, but are not limited to, the following packages -- thank you! :
 * [nnUNet](https://github.com/MIC-DKFZ/nnUNet)
