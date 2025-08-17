@@ -86,7 +86,6 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
         img_itk.SetSpacing([resolution_zyx_um[2], resolution_zyx_um[1], resolution_zyx_um[0]])  # here resolution is [res_x, res_y, res_z]
         thresholded_wga = img_itk > threshold_val
 
-        seg[sitk.GetArrayFromImage(thresholded_wga) > 0] = 0 # set to 0 so that only the distance from the cytoplasm is calculated, excluding tats
 
         distance_map = sitk.SignedMaurerDistanceMap(thresholded_wga, insideIsPositive=False, squaredDistance=False,
                                                     useImageSpacing=True)
@@ -108,25 +107,30 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
         napari.run()
 
 
+    shape_stats_filter = sitk.LabelShapeStatisticsImageFilter()
+    shape_stats_filter.ComputeOrientedBoundingBoxOn()
+    shape_stats_filter.ComputePerimeterOn()
+    shape_stats_filter.Execute(segmentation_itk)
+    labels = shape_stats_filter.GetLabels()
+
+
     if calculate_tats_density:
+        seg[sitk.GetArrayFromImage(thresholded_wga) > 0] = 0 # set to 0 so that only the distance from the cytoplasm is calculated, excluding tats
+        segmentation_itk = sitk.GetImageFromArray(seg.astype(np.uint32))
+        segmentation_itk.SetSpacing([resolution_zyx_um[2], resolution_zyx_um[1],
+                                     resolution_zyx_um[0]])  # here resolution is [res_x, res_y, res_z]
+
         intensity_stats_filter = sitk.LabelIntensityStatisticsImageFilter()
         intensity_stats_filter.ComputePerimeterOff()
         intensity_stats_filter.SetNumberOfBins(2048) # increase for a more accurate meedian
         # mean is calculated as sum / count, not hist
         intensity_stats_filter.Execute(segmentation_itk, distance_map)
 
-    shape_stats_filter = sitk.LabelShapeStatisticsImageFilter()
-    shape_stats_filter.ComputeOrientedBoundingBoxOn()
-    shape_stats_filter.ComputePerimeterOn()
-    shape_stats_filter.Execute(segmentation_itk)
-
-    labels = shape_stats_filter.GetLabels()
     stats_dict = []
 
     for label_val in tqdm(labels):
         if label_val == 0: # Skip background label if present
             continue
-
         bbox = shape_stats_filter.GetBoundingBox(label_val)
         start_x, start_y, start_z, size_x, size_y, size_z = bbox
 
