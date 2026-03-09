@@ -22,7 +22,7 @@ cd CMSegmentationToolkit
 ```
 2. Install the conda environment.
 ```
- conda env create --file conda_env_windows.yml
+ conda env create --file environment_windows.yml
 OR
  conda env create --file environment_windows_tf_GPU.yml  (for tensorflow/GPU)
 ```
