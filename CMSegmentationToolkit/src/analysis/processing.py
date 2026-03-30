@@ -4,7 +4,6 @@ import numpy as np
 from skimage.filters import threshold_li
 from tqdm import tqdm
 import pandas as pd
-import pyclesperanto_prototype as cle
 import logging
 from CMSegmentationToolkit.src.analysis.transformations import align_with_pca, is_on_border
 
@@ -12,6 +11,7 @@ def threshold_li_modified(img):
     return 0.75 * threshold_li(img)
 
 def white_2d_tophat_pyclesperanto(img, radius=5):
+    import pyclesperanto_prototype as cle
     img = img.astype(np.float32)
     output = cle.create_like(img)
     cle.top_hat_box(source=img, destination=output, radius_x=radius, radius_y=radius, radius_z=1)
@@ -71,6 +71,7 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
 
     dim_z, dim_y, dim_x = seg.shape
     if calculate_tats_density:
+        import pyclesperanto_prototype as cle
         for z_ix in tqdm(range(dim_z), desc='Processing z slices'):
             wga[z_ix] = white_2d_tophat_pyclesperanto(wga[z_ix], radius=tophat_radius)  # pyclesperanto is faster
 
