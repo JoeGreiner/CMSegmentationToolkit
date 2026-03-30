@@ -6,14 +6,22 @@ Analytical reference values
 
 A single axis-aligned rectangular block is embedded in a larger volume.
 
-  1. Isotropic    res_ZYX = [1.0,  1.0,  1.0] um
-  2. Anisotropic  res_ZYX = [0.5,  0.3,  0.2] um
+  1. Isotropic    res_ZYX = [0.2,  0.2,  0.2] um
+  2. Anisotropic  res_ZYX = [0.3,  0.2,  0.1] um
 
-Geometry (shared, in voxels)
-----------------------------
-  Volume shape (Z,Y,X) : 100 x 100 x 150
-  Block slice          : z in [40,50), y in [40,55), x in [50,90)
-  Block voxel dims     : Z=10,  Y=15,  X=40
+  Both cases represent the same physical block: 150 x 30 x 15 um.
+
+Isotropic geometry (in voxels)
+------------------------------
+  Volume shape (Z,Y,X) : 145 x 220 x 820
+  Block slice          : z in [35,110), y in [35,185), x in [35,785)
+  Block voxel dims     : Z=75,  Y=150,  X=750
+
+Anisotropic geometry (in voxels)
+--------------------------------
+  Volume shape (Z,Y,X) : 120 x 220 x 1570
+  Block slice          : z in [35,85),  y in [35,185), x in [35,1535)
+  Block voxel dims     : Z=50,  Y=150,  X=1500
 
 Analytical formulae for a cuboid  a x b x c  (physical um)
 -----------------------------------------------------------
@@ -28,19 +36,19 @@ Analytical formulae for a cuboid  a x b x c  (physical um)
 
 ISOTROPIC expected physical dimensions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  X_phys = 40*1.0 = 40 um,  Y_phys = 15*1.0 = 15 um,  Z_phys = 10*1.0 = 10 um
-  Longest axis: X.  Cross-section dims: Y=15, Z=10.
-  Volume  = 6000 um^3 = 6.0 pL
-  Surface = 2*(40*15 + 40*10 + 15*10) = 2300 um^2
-  S/V     = 2300/6000 ~ 0.3833 um^-1
+  X_phys = 750*0.2 = 150 um,  Y_phys = 150*0.2 = 30 um,  Z_phys = 75*0.2 = 15 um
+  Longest axis: X.  Cross-section dims: Y=30, Z=15.
+  Volume  = 67500 um^3 = 67.5 pL
+  Surface = 2*(150*30 + 150*15 + 30*15) = 14400 um^2
+  S/V     = 14400/67500 ~ 0.2133 um^-1
 
 ANISOTROPIC expected physical dimensions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  X_phys = 40*0.2 = 8 um,  Y_phys = 15*0.3 = 4.5 um,  Z_phys = 10*0.5 = 5 um
-  Longest axis: X.  Cross-section dims: Z=5, Y=4.5.
-  Volume  = 180 um^3 = 0.18 pL
-  Surface = 2*(8*4.5 + 8*5 + 4.5*5) = 197 um^2
-  S/V     = 197/180 ~ 1.0944 um^-1
+  X_phys = 1500*0.1 = 150 um,  Y_phys = 150*0.2 = 30 um,  Z_phys = 50*0.3 = 15 um
+  Longest axis: X.  Cross-section dims: Y=30, Z=15.
+  Volume  = 67500 um^3 = 67.5 pL
+  Surface = 2*(150*30 + 150*15 + 30*15) = 14400 um^2
+  S/V     = 14400/67500 ~ 0.2133 um^-1
 
 Tolerance rationale
 ~~~~~~~~~~~~~~~~~~~
@@ -71,56 +79,62 @@ def _make_block(vol_shape_zyx, block_slice, label=1):
     seg[block_slice] = label
     return seg
 
-VOL_SHAPE   = (100, 100, 150)                # Z, Y, X
-BLOCK_SLICE = np.s_[40:50, 40:55, 50:90]     # Z=10, Y=15, X=40
-N_Z, N_Y, N_X = 10, 15, 40
-N_VOXELS = N_Z * N_Y * N_X                    # 6 000
-ISO_RES = [1.0, 1.0, 1.0]
+VOL_SHAPE   = (145, 220, 820)                # Z, Y, X
+BLOCK_SLICE = np.s_[35:110, 35:185, 35:785]  # Z=75, Y=150, X=750
+N_Z, N_Y, N_X = 75, 150, 750
+N_VOXELS = N_Z * N_Y * N_X                    # 8 437 500
+ISO_RES = [0.2, 0.2, 0.2]
 
-ISO_X = N_X * ISO_RES[2]   # 40
-ISO_Y = N_Y * ISO_RES[1]   # 15
-ISO_Z = N_Z * ISO_RES[0]   # 10
+ISO_X = N_X * ISO_RES[2]   # 150
+ISO_Y = N_Y * ISO_RES[1]   # 30
+ISO_Z = N_Z * ISO_RES[0]   # 15
 
 # oriented bounding box ordered by eigenvalue (smallest -> largest)
 #   eigenvalue ~ (physical extent)^2
-#   Z_phys=10 < Y_phys=15 < X_phys=40
-ISO_OBB_0 = ISO_Z    # 10
-ISO_OBB_1 = ISO_Y    # 15
-ISO_OBB_2 = ISO_X    # 40
+#   Z_phys=15 < Y_phys=30 < X_phys=150
+ISO_OBB_0 = ISO_Z    # 15
+ISO_OBB_1 = ISO_Y    # 30
+ISO_OBB_2 = ISO_X    # 150
 
 # cross-section perpendicular to longest axis (X)
-ISO_CS_SECOND = max(ISO_Y, ISO_Z)            # 15 um
-ISO_CS_SMALL  = min(ISO_Y, ISO_Z)            # 10 um
-ISO_CS_RATIO  = ISO_CS_SECOND / ISO_CS_SMALL # 1.5
-ISO_CS_AREA   = ISO_Y * ISO_Z                # 150 um^2
+ISO_CS_SECOND = max(ISO_Y, ISO_Z)            # 30 um
+ISO_CS_SMALL  = min(ISO_Y, ISO_Z)            # 15 um
+ISO_CS_RATIO  = ISO_CS_SECOND / ISO_CS_SMALL # 2.0
+ISO_CS_AREA   = ISO_Y * ISO_Z                # 450 um^2
 
-ISO_VOLUME  = ISO_X * ISO_Y * ISO_Z          # 6000 um^3
-ISO_VOL_PL  = ISO_VOLUME / 1000              # 6.0 pL
-ISO_SURFACE = 2 * (ISO_X*ISO_Y + ISO_X*ISO_Z + ISO_Y*ISO_Z)  # 2300 um^2
-ISO_SV      = ISO_SURFACE / ISO_VOLUME       # 0.3833 um^-1
+ISO_VOLUME  = ISO_X * ISO_Y * ISO_Z          # 67500 um^3
+ISO_VOL_PL  = ISO_VOLUME / 1000              # 67.5 pL
+ISO_SURFACE = 2 * (ISO_X*ISO_Y + ISO_X*ISO_Z + ISO_Y*ISO_Z)  # 14400 um^2
+ISO_SV      = ISO_SURFACE / ISO_VOLUME       # 0.2133 um^-1
 
-ANISO_RES = [0.5, 0.3, 0.2]
+ANISO_RES = [0.3, 0.2, 0.1]
 
-ANISO_X = N_X * ANISO_RES[2]   # 8.0 um
-ANISO_Y = N_Y * ANISO_RES[1]   # 4.5 um
-ANISO_Z = N_Z * ANISO_RES[0]   # 5.0 um
+# Anisotropic voxel grid — same physical block (150 x 30 x 15 um)
+ANISO_N_Z, ANISO_N_Y, ANISO_N_X = 50, 150, 1500
+ANISO_N_VOXELS = ANISO_N_Z * ANISO_N_Y * ANISO_N_X  # 11 250 000
+ANISO_VOL_SHAPE   = (120, 220, 1570)
+ANISO_BLOCK_SLICE = np.s_[35:85, 35:185, 35:1535]
+
+ANISO_X = ANISO_N_X * ANISO_RES[2]   # 150.0 um
+ANISO_Y = ANISO_N_Y * ANISO_RES[1]   # 30.0 um
+ANISO_Z = ANISO_N_Z * ANISO_RES[0]   # 15.0 um
 
 # oriented bounding box  (eigenvalue order)
-#   Y_phys=4.5 < Z_phys=5.0 < X_phys=8.0
-ANISO_OBB_0 = ANISO_Y   # 4.5
-ANISO_OBB_1 = ANISO_Z   # 5.0
-ANISO_OBB_2 = ANISO_X   # 8.0
+#   Z_phys=15 < Y_phys=30 < X_phys=150  (same as isotropic)
+ANISO_OBB_0 = ANISO_Z   # 15
+ANISO_OBB_1 = ANISO_Y   # 30
+ANISO_OBB_2 = ANISO_X   # 150
 
 # cross-section perpendicular to longest axis (X)
-ANISO_CS_SECOND = max(ANISO_Y, ANISO_Z)                # 5.0 um
-ANISO_CS_SMALL  = min(ANISO_Y, ANISO_Z)                # 4.5 um
-ANISO_CS_RATIO  = ANISO_CS_SECOND / ANISO_CS_SMALL     # 1.1111
-ANISO_CS_AREA   = ANISO_Y * ANISO_Z                    # 22.5 um^2
+ANISO_CS_SECOND = max(ANISO_Y, ANISO_Z)                # 30 um
+ANISO_CS_SMALL  = min(ANISO_Y, ANISO_Z)                # 15 um
+ANISO_CS_RATIO  = ANISO_CS_SECOND / ANISO_CS_SMALL     # 2.0
+ANISO_CS_AREA   = ANISO_Y * ANISO_Z                    # 450 um^2
 
-ANISO_VOLUME  = ANISO_X * ANISO_Y * ANISO_Z            # 180 um^3
-ANISO_VOL_PL  = ANISO_VOLUME / 1000                    # 0.18 pL
-ANISO_SURFACE = 2 * (ANISO_X*ANISO_Y + ANISO_X*ANISO_Z + ANISO_Y*ANISO_Z)  # 197 um^2
-ANISO_SV      = ANISO_SURFACE / ANISO_VOLUME           # 1.0944 um^-1
+ANISO_VOLUME  = ANISO_X * ANISO_Y * ANISO_Z            # 67500 um^3
+ANISO_VOL_PL  = ANISO_VOLUME / 1000                    # 67.5 pL
+ANISO_SURFACE = 2 * (ANISO_X*ANISO_Y + ANISO_X*ANISO_Z + ANISO_Y*ANISO_Z)  # 14400 um^2
+ANISO_SV      = ANISO_SURFACE / ANISO_VOLUME           # 0.2133 um^-1
 
 # ── Tolerances ────────────────────────────────────────────────────────────
 TOL_EXACT   = dict(rel=1e-6)          # volume, voxels — exact
@@ -137,169 +151,169 @@ class TestIsotropic:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_cell_volume_voxels(self, row):
-        assert row["cell_volume_voxels"] == N_VOXELS
+    def test_cell_volume_voxels(self, row, check):
+        check(row["cell_volume_voxels"], N_VOXELS)
 
-    def test_cell_volume_um3(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ISO_VOLUME, **TOL_EXACT)
+    def test_cell_volume_um3(self, row, check):
+        check(row["cell_volume_um3"], ISO_VOLUME, **TOL_EXACT)
 
-    def test_cell_volume_pL(self, row):
-        assert row["cell_volume_pL"] == pytest.approx(ISO_VOL_PL, **TOL_EXACT)
+    def test_cell_volume_pL(self, row, check):
+        check(row["cell_volume_pL"], ISO_VOL_PL, **TOL_EXACT)
 
-    def test_cm_bounding_box_size_0(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ISO_OBB_0, **TOL_APPROX)
+    def test_cm_bounding_box_size_0(self, row, check):
+        check(row["cm_bounding_box_size_0"], ISO_OBB_0, **TOL_APPROX)
 
-    def test_cm_bounding_box_size_1(self, row):
-        assert row["cm_bounding_box_size_1"] == pytest.approx(ISO_OBB_1, **TOL_APPROX)
+    def test_cm_bounding_box_size_1(self, row, check):
+        check(row["cm_bounding_box_size_1"], ISO_OBB_1, **TOL_APPROX)
 
-    def test_cm_bounding_box_size_2(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ISO_OBB_2, **TOL_APPROX)
+    def test_cm_bounding_box_size_2(self, row, check):
+        check(row["cm_bounding_box_size_2"], ISO_OBB_2, **TOL_APPROX)
 
-    def test_average_second_largest_dim_um(self, row):
-        assert row["average_second_largest_dim_um"] == pytest.approx(
+    def test_average_second_largest_dim_um(self, row, check):
+        check(row["average_second_largest_dim_um"],
             ISO_CS_SECOND, **TOL_APPROX)
 
-    def test_average_smallest_dim_um(self, row):
-        assert row["average_smallest_dim_um"] == pytest.approx(
+    def test_average_smallest_dim_um(self, row, check):
+        check(row["average_smallest_dim_um"],
             ISO_CS_SMALL, **TOL_APPROX)
 
-    def test_average_ratio_dim(self, row):
-        assert row["average_ratio_dim"] == pytest.approx(
+    def test_average_ratio_dim(self, row, check):
+        check(row["average_ratio_dim"],
             ISO_CS_RATIO, **TOL_APPROX)
 
-    def test_average_area_um2(self, row):
-        assert row["average_area_um2"] == pytest.approx(
+    def test_average_area_um2(self, row, check):
+        check(row["average_area_um2"],
             ISO_CS_AREA, **TOL_APPROX)
 
-    def test_ratio_width_depth(self, row):
-        # OBB_1 / OBB_0 = 15 / 10 = 1.5
-        assert row["ratio_width_depth"] == pytest.approx(
+    def test_ratio_width_depth(self, row, check):
+        # OBB_1 / OBB_0 = 30 / 15 = 2.0
+        check(row["ratio_width_depth"],
             ISO_OBB_1 / ISO_OBB_0, **TOL_APPROX)
 
-    def test_ratio_skipped_border_slices(self, row):
-        assert row["ratio_skipped_border_slices"] == 0.0
+    def test_ratio_skipped_border_slices(self, row, check):
+        check(row["ratio_skipped_border_slices"], 0.0)
 
-    def test_average_second_largest_dim_border_um(self, row):
-        assert row["average_second_largest_dim_border_um"] == pytest.approx(
+    def test_average_second_largest_dim_border_um(self, row, check):
+        check(row["average_second_largest_dim_border_um"],
             ISO_CS_SECOND, **TOL_APPROX)
 
-    def test_average_smallest_dim_border_um(self, row):
-        assert row["average_smallest_dim_border_um"] == pytest.approx(
+    def test_average_smallest_dim_border_um(self, row, check):
+        check(row["average_smallest_dim_border_um"],
             ISO_CS_SMALL, **TOL_APPROX)
 
-    def test_average_ratio_dim_border(self, row):
-        assert row["average_ratio_dim_border"] == pytest.approx(
+    def test_average_ratio_dim_border(self, row, check):
+        check(row["average_ratio_dim_border"],
             ISO_CS_RATIO, **TOL_APPROX)
 
-    def test_average_area_border_um2(self, row):
-        assert row["average_area_border_um2"] == pytest.approx(
+    def test_average_area_border_um2(self, row, check):
+        check(row["average_area_border_um2"],
             ISO_CS_AREA, **TOL_APPROX)
 
-    def test_border_equals_nonborder(self, row):
+    def test_border_equals_nonborder(self, row, check):
         """When no slices are skipped, border-filtered = unfiltered."""
-        assert row["average_second_largest_dim_border_um"] == pytest.approx(
+        check(row["average_second_largest_dim_border_um"],
             row["average_second_largest_dim_um"], rel=0.01)
-        assert row["average_smallest_dim_border_um"] == pytest.approx(
+        check(row["average_smallest_dim_border_um"],
             row["average_smallest_dim_um"], rel=0.01)
-        assert row["average_area_border_um2"] == pytest.approx(
+        check(row["average_area_border_um2"],
             row["average_area_um2"], rel=0.01)
 
-    def test_cell_surface_um2(self, row):
-        assert row["cell_surface_um2"] == pytest.approx(
+    def test_cell_surface_um2(self, row, check):
+        check(row["cell_surface_um2"],
             ISO_SURFACE, **TOL_SURFACE)
 
-    def test_cell_surface_to_volume_ratio_um(self, row):
-        assert row["cell_surface_to_volume_ratio_um"] == pytest.approx(
+    def test_cell_surface_to_volume_ratio_um(self, row, check):
+        check(row["cell_surface_to_volume_ratio_um"],
             ISO_SV, **TOL_SURFACE)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
 class TestAnisotropic:
     @pytest.fixture(scope="class")
     def row(self):
-        seg = _make_block(VOL_SHAPE, BLOCK_SLICE)
+        seg = _make_block(ANISO_VOL_SHAPE, ANISO_BLOCK_SLICE)
         df = analyze_stack(seg, resolution_zyx_um=ANISO_RES,
                            calculate_tats_density=False)
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_cell_volume_voxels(self, row):
-        assert row["cell_volume_voxels"] == N_VOXELS
+    def test_cell_volume_voxels(self, row, check):
+        check(row["cell_volume_voxels"], ANISO_N_VOXELS)
 
-    def test_cell_volume_um3(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ANISO_VOLUME, **TOL_EXACT)
+    def test_cell_volume_um3(self, row, check):
+        check(row["cell_volume_um3"], ANISO_VOLUME, **TOL_EXACT)
 
-    def test_cell_volume_pL(self, row):
-        assert row["cell_volume_pL"] == pytest.approx(ANISO_VOL_PL, **TOL_EXACT)
+    def test_cell_volume_pL(self, row, check):
+        check(row["cell_volume_pL"], ANISO_VOL_PL, **TOL_EXACT)
 
-    def test_cm_bounding_box_size_0(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ANISO_OBB_0, **TOL_APPROX)
+    def test_cm_bounding_box_size_0(self, row, check):
+        check(row["cm_bounding_box_size_0"], ANISO_OBB_0, **TOL_APPROX)
 
-    def test_cm_bounding_box_size_1(self, row):
-        assert row["cm_bounding_box_size_1"] == pytest.approx(ANISO_OBB_1, **TOL_APPROX)
+    def test_cm_bounding_box_size_1(self, row, check):
+        check(row["cm_bounding_box_size_1"], ANISO_OBB_1, **TOL_APPROX)
 
-    def test_cm_bounding_box_size_2(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ANISO_OBB_2, **TOL_APPROX)
+    def test_cm_bounding_box_size_2(self, row, check):
+        check(row["cm_bounding_box_size_2"], ANISO_OBB_2, **TOL_APPROX)
 
-    def test_average_second_largest_dim_um(self, row):
-        assert row["average_second_largest_dim_um"] == pytest.approx(
+    def test_average_second_largest_dim_um(self, row, check):
+        check(row["average_second_largest_dim_um"],
             ANISO_CS_SECOND, **TOL_APPROX)
 
-    def test_average_smallest_dim_um(self, row):
-        assert row["average_smallest_dim_um"] == pytest.approx(
+    def test_average_smallest_dim_um(self, row, check):
+        check(row["average_smallest_dim_um"],
             ANISO_CS_SMALL, **TOL_APPROX)
 
-    def test_average_ratio_dim(self, row):
-        assert row["average_ratio_dim"] == pytest.approx(
+    def test_average_ratio_dim(self, row, check):
+        check(row["average_ratio_dim"],
             ANISO_CS_RATIO, **TOL_APPROX)
 
-    def test_average_area_um2(self, row):
-        assert row["average_area_um2"] == pytest.approx(
+    def test_average_area_um2(self, row, check):
+        check(row["average_area_um2"],
             ANISO_CS_AREA, **TOL_APPROX)
 
-    def test_ratio_width_depth(self, row):
-        # OBB_1 / OBB_0 = 5.0 / 4.5 ~ 1.111
-        assert row["ratio_width_depth"] == pytest.approx(
+    def test_ratio_width_depth(self, row, check):
+        # OBB_1 / OBB_0 = 30 / 15 = 2.0
+        check(row["ratio_width_depth"],
             ANISO_OBB_1 / ANISO_OBB_0, **TOL_APPROX)
 
-    def test_ratio_skipped_border_slices(self, row):
-        assert row["ratio_skipped_border_slices"] == 0.0
+    def test_ratio_skipped_border_slices(self, row, check):
+        check(row["ratio_skipped_border_slices"], 0.0)
 
-    def test_average_second_largest_dim_border_um(self, row):
-        assert row["average_second_largest_dim_border_um"] == pytest.approx(
+    def test_average_second_largest_dim_border_um(self, row, check):
+        check(row["average_second_largest_dim_border_um"],
             ANISO_CS_SECOND, **TOL_APPROX)
 
-    def test_average_smallest_dim_border_um(self, row):
-        assert row["average_smallest_dim_border_um"] == pytest.approx(
+    def test_average_smallest_dim_border_um(self, row, check):
+        check(row["average_smallest_dim_border_um"],
             ANISO_CS_SMALL, **TOL_APPROX)
 
-    def test_average_ratio_dim_border(self, row):
-        assert row["average_ratio_dim_border"] == pytest.approx(
+    def test_average_ratio_dim_border(self, row, check):
+        check(row["average_ratio_dim_border"],
             ANISO_CS_RATIO, **TOL_APPROX)
 
-    def test_average_area_border_um2(self, row):
-        assert row["average_area_border_um2"] == pytest.approx(
+    def test_average_area_border_um2(self, row, check):
+        check(row["average_area_border_um2"],
             ANISO_CS_AREA, **TOL_APPROX)
 
-    def test_border_equals_nonborder(self, row):
-        assert row["average_second_largest_dim_border_um"] == pytest.approx(
+    def test_border_equals_nonborder(self, row, check):
+        check(row["average_second_largest_dim_border_um"],
             row["average_second_largest_dim_um"], rel=0.01)
-        assert row["average_smallest_dim_border_um"] == pytest.approx(
+        check(row["average_smallest_dim_border_um"],
             row["average_smallest_dim_um"], rel=0.01)
-        assert row["average_area_border_um2"] == pytest.approx(
+        check(row["average_area_border_um2"],
             row["average_area_um2"], rel=0.01)
 
-    def test_cell_surface_um2(self, row):
-        assert row["cell_surface_um2"] == pytest.approx(
+    def test_cell_surface_um2(self, row, check):
+        check(row["cell_surface_um2"],
             ANISO_SURFACE, **TOL_SURFACE)
 
-    def test_cell_surface_to_volume_ratio_um(self, row):
-        assert row["cell_surface_to_volume_ratio_um"] == pytest.approx(
+    def test_cell_surface_to_volume_ratio_um(self, row, check):
+        check(row["cell_surface_to_volume_ratio_um"],
             ANISO_SV, **TOL_SURFACE)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
 from scipy.ndimage import rotate as ndimage_rotate
 
@@ -330,22 +344,22 @@ def _make_rotated_block(vol_shape_zyx, block_dims_zyx, angle_deg, rotation_axes,
     return seg_rot
 
 
-ROT_VOL_SHAPE = (150, 150, 200)
-ROT_BLOCK_DIMS = (10, 15, 40)
+ROT_VOL_SHAPE = (200, 250, 300)
+ROT_BLOCK_DIMS = (15, 30, 150)
 
-ROT_ISO_X = ROT_BLOCK_DIMS[2] * ISO_RES[2]   # 40
-ROT_ISO_Y = ROT_BLOCK_DIMS[1] * ISO_RES[1]   # 15
-ROT_ISO_Z = ROT_BLOCK_DIMS[0] * ISO_RES[0]   # 10
+ROT_ISO_X = ROT_BLOCK_DIMS[2] * ISO_RES[2]   # 30
+ROT_ISO_Y = ROT_BLOCK_DIMS[1] * ISO_RES[1]   # 6
+ROT_ISO_Z = ROT_BLOCK_DIMS[0] * ISO_RES[0]   # 3
 
 ROT_ISO_VOLUME  = ROT_ISO_X * ROT_ISO_Y * ROT_ISO_Z
-ROT_ISO_OBB_0   = min(ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X)   # 10
-ROT_ISO_OBB_1   = sorted([ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X])[1]  # 15
-ROT_ISO_OBB_2   = max(ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X)   # 40
+ROT_ISO_OBB_0   = min(ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X)   # 3
+ROT_ISO_OBB_1   = sorted([ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X])[1]  # 6
+ROT_ISO_OBB_2   = max(ROT_ISO_Z, ROT_ISO_Y, ROT_ISO_X)   # 30
 
-ROT_ISO_CS_SECOND = max(ROT_ISO_Y, ROT_ISO_Z)   # 15
-ROT_ISO_CS_SMALL  = min(ROT_ISO_Y, ROT_ISO_Z)   # 10
+ROT_ISO_CS_SECOND = max(ROT_ISO_Y, ROT_ISO_Z)   # 6
+ROT_ISO_CS_SMALL  = min(ROT_ISO_Y, ROT_ISO_Z)   # 3
 ROT_ISO_CS_RATIO  = ROT_ISO_CS_SECOND / ROT_ISO_CS_SMALL
-ROT_ISO_CS_AREA   = ROT_ISO_Y * ROT_ISO_Z        # 150
+ROT_ISO_CS_AREA   = ROT_ISO_Y * ROT_ISO_Z        # 18
 
 TOL_ROT_VOLUME  = dict(rel=0.05)
 TOL_ROT_APPROX  = dict(rel=0.25)
@@ -365,32 +379,32 @@ class TestRotated45AroundZ:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume_approximately_preserved(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
+    def test_volume_approximately_preserved(self, row, check):
+        check(row["cell_volume_um3"], ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
 
-    def test_obb_recovers_smallest_dim(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ROT_ISO_OBB_0, **TOL_ROT_APPROX)
+    def test_obb_recovers_smallest_dim(self, row, check):
+        check(row["cm_bounding_box_size_0"], ROT_ISO_OBB_0, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_middle_dim(self, row):
-        assert row["cm_bounding_box_size_1"] == pytest.approx(ROT_ISO_OBB_1, **TOL_ROT_APPROX)
+    def test_obb_recovers_middle_dim(self, row, check):
+        check(row["cm_bounding_box_size_1"], ROT_ISO_OBB_1, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_longest_dim(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ROT_ISO_OBB_2, **TOL_ROT_APPROX)
+    def test_obb_recovers_longest_dim(self, row, check):
+        check(row["cm_bounding_box_size_2"], ROT_ISO_OBB_2, **TOL_ROT_APPROX)
 
-    def test_cross_section_second_largest(self, row):
-        assert row["average_second_largest_dim_um"] == pytest.approx(
+    def test_cross_section_second_largest(self, row, check):
+        check(row["average_second_largest_dim_um"],
             ROT_ISO_CS_SECOND, **TOL_ROT_APPROX)
 
-    def test_cross_section_smallest(self, row):
-        assert row["average_smallest_dim_um"] == pytest.approx(
+    def test_cross_section_smallest(self, row, check):
+        check(row["average_smallest_dim_um"],
             ROT_ISO_CS_SMALL, **TOL_ROT_APPROX)
 
-    def test_cross_section_area(self, row):
-        assert row["average_area_um2"] == pytest.approx(
+    def test_cross_section_area(self, row, check):
+        check(row["average_area_um2"],
             ROT_ISO_CS_AREA, **TOL_ROT_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_ROT_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_ROT_BOX)
 
 
 class TestRotated30AroundY:
@@ -405,28 +419,28 @@ class TestRotated30AroundY:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume_approximately_preserved(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
+    def test_volume_approximately_preserved(self, row, check):
+        check(row["cell_volume_um3"], ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
 
-    def test_obb_recovers_smallest_dim(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ROT_ISO_OBB_0, **TOL_ROT_APPROX)
+    def test_obb_recovers_smallest_dim(self, row, check):
+        check(row["cm_bounding_box_size_0"], ROT_ISO_OBB_0, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_middle_dim(self, row):
-        assert row["cm_bounding_box_size_1"] == pytest.approx(ROT_ISO_OBB_1, **TOL_ROT_APPROX)
+    def test_obb_recovers_middle_dim(self, row, check):
+        check(row["cm_bounding_box_size_1"], ROT_ISO_OBB_1, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_longest_dim(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ROT_ISO_OBB_2, **TOL_ROT_APPROX)
+    def test_obb_recovers_longest_dim(self, row, check):
+        check(row["cm_bounding_box_size_2"], ROT_ISO_OBB_2, **TOL_ROT_APPROX)
 
-    def test_cross_section_second_largest(self, row):
-        assert row["average_second_largest_dim_um"] == pytest.approx(
+    def test_cross_section_second_largest(self, row, check):
+        check(row["average_second_largest_dim_um"],
             ROT_ISO_CS_SECOND, **TOL_ROT_APPROX)
 
-    def test_cross_section_smallest(self, row):
-        assert row["average_smallest_dim_um"] == pytest.approx(
+    def test_cross_section_smallest(self, row, check):
+        check(row["average_smallest_dim_um"],
             ROT_ISO_CS_SMALL, **TOL_ROT_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_ROT_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_ROT_BOX)
 
 
 class TestRotated60AroundX:
@@ -441,20 +455,20 @@ class TestRotated60AroundX:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume_approximately_preserved(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
+    def test_volume_approximately_preserved(self, row, check):
+        check(row["cell_volume_um3"], ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
 
-    def test_obb_recovers_smallest_dim(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ROT_ISO_OBB_0, **TOL_ROT_APPROX)
+    def test_obb_recovers_smallest_dim(self, row, check):
+        check(row["cm_bounding_box_size_0"], ROT_ISO_OBB_0, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_middle_dim(self, row):
-        assert row["cm_bounding_box_size_1"] == pytest.approx(ROT_ISO_OBB_1, **TOL_ROT_APPROX)
+    def test_obb_recovers_middle_dim(self, row, check):
+        check(row["cm_bounding_box_size_1"], ROT_ISO_OBB_1, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_longest_dim(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ROT_ISO_OBB_2, **TOL_ROT_APPROX)
+    def test_obb_recovers_longest_dim(self, row, check):
+        check(row["cm_bounding_box_size_2"], ROT_ISO_OBB_2, **TOL_ROT_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_ROT_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_ROT_BOX)
 
 
 class TestRotatedAnisotropicResolution:
@@ -470,18 +484,18 @@ class TestRotatedAnisotropicResolution:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume_approximately_preserved(self, row):
+    def test_volume_approximately_preserved(self, row, check):
         aniso_vol = ROT_BLOCK_DIMS[0] * ANISO_RES[0] * \
                     ROT_BLOCK_DIMS[1] * ANISO_RES[1] * \
                     ROT_BLOCK_DIMS[2] * ANISO_RES[2]
-        assert row["cell_volume_um3"] == pytest.approx(aniso_vol, **TOL_ROT_VOLUME)
+        check(row["cell_volume_um3"], aniso_vol, **TOL_ROT_VOLUME)
 
     def test_obb_longest_dim_reasonable(self, row):
         # Voxel-space rotation with anisotropic resolution distorts the
         # physical shape, so OBB dims won't match the axis-aligned case
         # exactly.  We just verify the longest OBB dim is within a plausible
         # range (between the original longest and the voxel-diagonal).
-        aniso_longest = ROT_BLOCK_DIMS[2] * ANISO_RES[2]  # 8.0
+        aniso_longest = ROT_BLOCK_DIMS[2] * ANISO_RES[2]  # 15.0
         assert row["cm_bounding_box_size_2"] >= aniso_longest * 0.8
 
     def test_boxiness_positive(self, row):
@@ -512,24 +526,24 @@ class TestCube:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(CUBE_VOLUME, **TOL_EXACT)
+    def test_volume(self, row, check):
+        check(row["cell_volume_um3"], CUBE_VOLUME, **TOL_EXACT)
 
-    def test_ratio_width_depth_near_one(self, row):
-        assert row["ratio_width_depth"] == pytest.approx(1.0, **TOL_APPROX)
+    def test_ratio_width_depth_near_one(self, row, check):
+        check(row["ratio_width_depth"], 1.0, **TOL_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
-    def test_cross_section_ratio_near_one(self, row):
-        assert row["average_ratio_dim"] == pytest.approx(1.0, **TOL_APPROX)
+    def test_cross_section_ratio_near_one(self, row, check):
+        check(row["average_ratio_dim"], 1.0, **TOL_APPROX)
 
-    def test_surface(self, row):
-        assert row["cell_surface_um2"] == pytest.approx(CUBE_SURFACE, **TOL_SURFACE)
+    def test_surface(self, row, check):
+        check(row["cell_surface_um2"], CUBE_SURFACE, **TOL_SURFACE)
 
-    def test_sv_ratio(self, row):
+    def test_sv_ratio(self, row, check):
         expected_sv = CUBE_SURFACE / CUBE_VOLUME  # 0.3
-        assert row["cell_surface_to_volume_ratio_um"] == pytest.approx(
+        check(row["cell_surface_to_volume_ratio_um"],
             expected_sv, **TOL_SURFACE)
 
 
@@ -562,22 +576,22 @@ class TestElongatedRod:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ROD_VOLUME, **TOL_EXACT)
+    def test_volume(self, row, check):
+        check(row["cell_volume_um3"], ROD_VOLUME, **TOL_EXACT)
 
-    def test_obb_longest(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ROD_OBB_LONGEST, **TOL_APPROX)
+    def test_obb_longest(self, row, check):
+        check(row["cm_bounding_box_size_2"], ROD_OBB_LONGEST, **TOL_APPROX)
 
-    def test_cross_section_ratio_near_one(self, row):
+    def test_cross_section_ratio_near_one(self, row, check):
         """Square cross-section → ratio ≈ 1."""
-        assert row["average_ratio_dim"] == pytest.approx(ROD_CS_RATIO, **TOL_APPROX)
+        check(row["average_ratio_dim"], ROD_CS_RATIO, **TOL_APPROX)
 
-    def test_cross_section_dims(self, row):
-        assert row["average_second_largest_dim_um"] == pytest.approx(ROD_CS_SECOND, **TOL_APPROX)
-        assert row["average_smallest_dim_um"] == pytest.approx(ROD_CS_SMALL, **TOL_APPROX)
+    def test_cross_section_dims(self, row, check):
+        check(row["average_second_largest_dim_um"], ROD_CS_SECOND, **TOL_APPROX)
+        check(row["average_smallest_dim_um"], ROD_CS_SMALL, **TOL_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
 
 # ---------------------------------------------------------------------------
@@ -605,31 +619,31 @@ class TestMultipleLabels:
     def test_two_rows_returned(self, df):
         assert len(df) == 2
 
-    def test_label_1_volume(self, df):
+    def test_label_1_volume(self, df, check):
         row = df[df["label"] == 1].iloc[0]
-        assert row["cell_volume_um3"] == pytest.approx(BLOCK_A_VOLUME, **TOL_EXACT)
+        check(row["cell_volume_um3"], BLOCK_A_VOLUME, **TOL_EXACT)
 
-    def test_label_2_volume(self, df):
+    def test_label_2_volume(self, df, check):
         row = df[df["label"] == 2].iloc[0]
-        assert row["cell_volume_um3"] == pytest.approx(BLOCK_B_VOLUME, **TOL_EXACT)
+        check(row["cell_volume_um3"], BLOCK_B_VOLUME, **TOL_EXACT)
 
-    def test_label_1_boxiness(self, df):
+    def test_label_1_boxiness(self, df, check):
         row = df[df["label"] == 1].iloc[0]
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
-    def test_label_2_boxiness(self, df):
+    def test_label_2_boxiness(self, df, check):
         row = df[df["label"] == 2].iloc[0]
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_BOX)
+        check(row["boxiness"], 1.0, **TOL_BOX)
 
-    def test_label_2_obb_longest(self, df):
+    def test_label_2_obb_longest(self, df, check):
         row = df[df["label"] == 2].iloc[0]
         # Longest physical dimension of block B = 60 um
-        assert row["cm_bounding_box_size_2"] == pytest.approx(60.0, **TOL_APPROX)
+        check(row["cm_bounding_box_size_2"], 60.0, **TOL_APPROX)
 
-    def test_label_2_cross_section(self, df):
+    def test_label_2_cross_section(self, df, check):
         row = df[df["label"] == 2].iloc[0]
         # Cross-section perpendicular to longest axis (X=60): Y=20, Z=20
-        assert row["average_ratio_dim"] == pytest.approx(1.0, **TOL_APPROX)
+        check(row["average_ratio_dim"], 1.0, **TOL_APPROX)
 
 
 # ---------------------------------------------------------------------------
@@ -654,9 +668,9 @@ class TestBorderTouching:
     def test_is_touching_border(self, row):
         assert row["is_touching_border"] == 1
 
-    def test_volume(self, row):
+    def test_volume(self, row, check):
         expected = 10 * 15 * 30  # 4500
-        assert row["cell_volume_um3"] == pytest.approx(expected, **TOL_EXACT)
+        check(row["cell_volume_um3"], expected, **TOL_EXACT)
 
 
 class TestInteriorNotTouchingBorder:
@@ -695,17 +709,17 @@ class TestCompoundRotation:
         assert len(df) == 1
         return df.iloc[0]
 
-    def test_volume_approximately_preserved(self, row):
-        assert row["cell_volume_um3"] == pytest.approx(ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
+    def test_volume_approximately_preserved(self, row, check):
+        check(row["cell_volume_um3"], ROT_ISO_VOLUME, **TOL_ROT_VOLUME)
 
-    def test_obb_recovers_longest_dim(self, row):
-        assert row["cm_bounding_box_size_2"] == pytest.approx(ROT_ISO_OBB_2, **TOL_ROT_APPROX)
+    def test_obb_recovers_longest_dim(self, row, check):
+        check(row["cm_bounding_box_size_2"], ROT_ISO_OBB_2, **TOL_ROT_APPROX)
 
-    def test_obb_recovers_smallest_dim(self, row):
-        assert row["cm_bounding_box_size_0"] == pytest.approx(ROT_ISO_OBB_0, **TOL_ROT_APPROX)
+    def test_obb_recovers_smallest_dim(self, row, check):
+        check(row["cm_bounding_box_size_0"], ROT_ISO_OBB_0, **TOL_ROT_APPROX)
 
-    def test_boxiness(self, row):
-        assert row["boxiness"] == pytest.approx(1.0, **TOL_ROT_BOX)
+    def test_boxiness(self, row, check):
+        check(row["boxiness"], 1.0, **TOL_ROT_BOX)
 
 
 # ---------------------------------------------------------------------------
@@ -722,30 +736,30 @@ class TestResolutionScaling:
                             calculate_tats_density=False)
         return df1.iloc[0], df2.iloc[0]
 
-    def test_volume_scales_cubically(self, rows):
+    def test_volume_scales_cubically(self, rows, check):
         r1, r2 = rows
-        assert r2["cell_volume_um3"] == pytest.approx(
+        check(r2["cell_volume_um3"],
             r1["cell_volume_um3"] * 8.0, **TOL_EXACT)
 
-    def test_surface_scales_quadratically(self, rows):
+    def test_surface_scales_quadratically(self, rows, check):
         r1, r2 = rows
-        assert r2["cell_surface_um2"] == pytest.approx(
+        check(r2["cell_surface_um2"],
             r1["cell_surface_um2"] * 4.0, **TOL_SURFACE)
 
-    def test_sv_ratio_halves(self, rows):
+    def test_sv_ratio_halves(self, rows, check):
         """S/V ratio scales as 1/scale_factor when all dims double."""
         r1, r2 = rows
-        assert r2["cell_surface_to_volume_ratio_um"] == pytest.approx(
+        check(r2["cell_surface_to_volume_ratio_um"],
             r1["cell_surface_to_volume_ratio_um"] / 2.0, **TOL_SURFACE)
 
-    def test_voxel_count_unchanged(self, rows):
+    def test_voxel_count_unchanged(self, rows, check):
         r1, r2 = rows
-        assert r1["cell_volume_voxels"] == r2["cell_volume_voxels"]
+        check(r1["cell_volume_voxels"], r2["cell_volume_voxels"])
 
-    def test_obb_scales_linearly(self, rows):
+    def test_obb_scales_linearly(self, rows, check):
         r1, r2 = rows
         for col in ["cm_bounding_box_size_0", "cm_bounding_box_size_1", "cm_bounding_box_size_2"]:
-            assert r2[col] == pytest.approx(r1[col] * 2.0, **TOL_APPROX)
+            check(r2[col], r1[col] * 2.0, **TOL_APPROX)
 
 
 if __name__ == "__main__":
