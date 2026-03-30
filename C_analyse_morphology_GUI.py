@@ -1,5 +1,6 @@
 import os
 import logging
+import math
 import SimpleITK as sitk
 
 from PyQt5.QtCore import Qt, QSettings
@@ -16,6 +17,7 @@ from CMSegmentationToolkit.src.fileIO.export_to_excel import export_dataframe_to
 class GUI_Restoration(QWidget):
     def __init__(self):
         super(GUI_Restoration, self).__init__()
+        self.image_metadata = None
         self.initUI()
 
     def initUI(self):
@@ -64,6 +66,31 @@ class GUI_Restoration(QWidget):
         self.imageInputLayout.addWidget(self.imageInputLabel)
         self.lineWidgetImage = QLineEdit()
         self.imageInputLayout.addWidget(self.lineWidgetImage)
+
+        self.imageMetadataLayout = QVBoxLayout()
+        self.imageMetadataTitle = QLabel(
+            "Loaded image metadata (from file header; reordered to ZYX for comparison with the fields below):",
+            self
+        )
+        self.imageMetadataTitle.setWordWrap(True)
+        self.imageMetadataLayout.addWidget(self.imageMetadataTitle)
+
+        self.imageSizeXYZLabel = QLabel("Image size (XYZ in file): not loaded", self)
+        self.imageSizeZYXLabel = QLabel("Image size (ZYX for GUI/array): not loaded", self)
+        self.imageSpacingXYZLabel = QLabel("Image spacing (XYZ in file): not loaded", self)
+        self.imageSpacingZYXLabel = QLabel("Image spacing (ZYX for manual comparison): not loaded", self)
+        self.imageResolutionCheckLabel = QLabel(
+            "Resolution check: drag a file or download the test image to compare it with the manual Z,Y,X input.",
+            self
+        )
+        self.imageResolutionCheckLabel.setWordWrap(True)
+
+        self.imageMetadataLayout.addWidget(self.imageSizeXYZLabel)
+        self.imageMetadataLayout.addWidget(self.imageSizeZYXLabel)
+        self.imageMetadataLayout.addWidget(self.imageSpacingXYZLabel)
+        self.imageMetadataLayout.addWidget(self.imageSpacingZYXLabel)
+        self.imageMetadataLayout.addWidget(self.imageResolutionCheckLabel)
+        layout.addLayout(self.imageMetadataLayout)
 
         self.img_added = False
 
@@ -124,6 +151,9 @@ class GUI_Restoration(QWidget):
         self.resolutionZ.textChanged.connect(self.saveSettings)
         self.resolutionY.textChanged.connect(self.saveSettings)
         self.resolutionX.textChanged.connect(self.saveSettings)
+        self.resolutionZ.textChanged.connect(self.update_resolution_comparison)
+        self.resolutionY.textChanged.connect(self.update_resolution_comparison)
+        self.resolutionX.textChanged.connect(self.update_resolution_comparison)
         self.filterCheckBox.stateChanged.connect(self.saveSettings)
         self.filterSize.textChanged.connect(self.saveSettings)
         self.filterNCheckBox.stateChanged.connect(self.saveSettings)
@@ -153,17 +183,141 @@ class GUI_Restoration(QWidget):
         self.dropLabelField.setStyleSheet("background-color: #f0f0f0; border: 2px dashed #888888; color: #888888;")
 
     def dropEvent(self, e):
-        for url in e.mimeData().urls():
-            if url.isLocalFile():
-                path = str(url.toLocalFile())
-                self.lineWidgetImage.setText(path)
-                self.img_added = True
+        local_paths = [str(url.toLocalFile()) for url in e.mimeData().urls() if url.isLocalFile()]
+        if not local_paths:
+            self.dropLabelField.setStyleSheet("background-color: #f0f0f0; border: 2px dashed #888888; color: #888888;")
+            return
 
-                self.dropLabelField.setStyleSheet(
-                    "background-color: #f0f0f0; border: 2px dashed #888888; color: #888888;")
+        path = local_paths[0]
+        if len(local_paths) > 1:
+            logging.info("Multiple files dropped. Using the first file for preview: %s", path)
 
-                if self.img_added:
-                    self.startButton.show()
+        self.set_selected_image(path)
+        self.img_added = True
+
+        self.dropLabelField.setStyleSheet(
+            "background-color: #f0f0f0; border: 2px dashed #888888; color: #888888;")
+
+        if self.img_added:
+            self.startButton.show()
+
+    @staticmethod
+    def _format_sequence(values, decimals=4):
+        formatted = []
+        for value in values:
+            if isinstance(value, int):
+                formatted.append(str(value))
+            elif isinstance(value, float):
+                formatted.append(f"{value:.{decimals}f}")
+            else:
+                formatted.append(str(value))
+        return ", ".join(formatted)
+
+    def _parse_manual_resolution_zyx(self):
+        if not self.resolutionZ.text() or not self.resolutionY.text() or not self.resolutionX.text():
+            return None
+
+        try:
+            return (
+                float(self.resolutionZ.text()),
+                float(self.resolutionY.text()),
+                float(self.resolutionX.text())
+            )
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _values_match(values_a, values_b, rel_tol=1e-6, abs_tol=1e-6):
+        return all(math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol) for a, b in zip(values_a, values_b))
+
+    def update_resolution_comparison(self):
+        if self.image_metadata is None:
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: drag a file or download the test image to compare it with the manual Z,Y,X input."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("")
+            return
+
+        manual_resolution_zyx = self._parse_manual_resolution_zyx()
+        if manual_resolution_zyx is None:
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: enter numeric Z, Y, X values to compare them with the image header."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("color: #666666;")
+            return
+
+        image_spacing_zyx = self.image_metadata['spacing_zyx']
+        image_spacing_xyz = self.image_metadata['spacing_xyz']
+
+        if len(manual_resolution_zyx) != len(image_spacing_zyx):
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: the loaded image spacing is not 3D, so it cannot be compared directly with Z,Y,X fields."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("color: #b26a00;")
+            return
+
+        if self._values_match(manual_resolution_zyx, image_spacing_zyx):
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: manual Z,Y,X matches the image header after reordering the file metadata to Z,Y,X."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("color: #10c46a;")
+        elif self._values_match(manual_resolution_zyx, image_spacing_xyz):
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: manual values match the file's native X,Y,Z spacing. The fields below expect Z,Y,X, so please verify the axis order."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("color: #b26a00;")
+        else:
+            self.imageResolutionCheckLabel.setText(
+                "Resolution check: manual Z,Y,X does not match the image header spacing in either Z,Y,X or X,Y,Z order. Please verify the spacing and axes."
+            )
+            self.imageResolutionCheckLabel.setStyleSheet("color: #c0392b;")
+
+    def clear_image_metadata(self, message="Image metadata not loaded"):
+        self.image_metadata = None
+        self.imageSizeXYZLabel.setText(f"Image size (XYZ in file): {message}")
+        self.imageSizeZYXLabel.setText(f"Image size (ZYX for GUI/array): {message}")
+        self.imageSpacingXYZLabel.setText(f"Image spacing (XYZ in file): {message}")
+        self.imageSpacingZYXLabel.setText(f"Image spacing (ZYX for manual comparison): {message}")
+        self.update_resolution_comparison()
+
+    def load_image_metadata(self, path):
+        try:
+            img = sitk.ReadImage(path)
+            size_xyz = tuple(int(v) for v in img.GetSize())
+            spacing_xyz = tuple(float(v) for v in img.GetSpacing())
+        except Exception as exc:
+            logging.exception("Failed to read image metadata from %s", path)
+            self.clear_image_metadata("unavailable")
+            msg = QMessageBox()
+            msg.setWindowTitle("Error")
+            msg.setText(f"Could not read image metadata from {path}.\n\n{exc}")
+            msg.exec()
+            return False
+
+        size_zyx = tuple(reversed(size_xyz))
+        spacing_zyx = tuple(reversed(spacing_xyz))
+        self.image_metadata = {
+            'size_xyz': size_xyz,
+            'size_zyx': size_zyx,
+            'spacing_xyz': spacing_xyz,
+            'spacing_zyx': spacing_zyx,
+        }
+
+        self.imageSizeXYZLabel.setText(f"Image size (XYZ in file): {self._format_sequence(size_xyz, decimals=0)}")
+        self.imageSizeZYXLabel.setText(f"Image size (ZYX for GUI/array): {self._format_sequence(size_zyx, decimals=0)}")
+        self.imageSpacingXYZLabel.setText(
+            f"Image spacing (XYZ in file): {self._format_sequence(spacing_xyz)} µm"
+        )
+        self.imageSpacingZYXLabel.setText(
+            f"Image spacing (ZYX for manual comparison): {self._format_sequence(spacing_zyx)} µm"
+        )
+        self.update_resolution_comparison()
+        logging.info("Loaded image metadata for %s: size_xyz=%s spacing_xyz=%s", path, size_xyz, spacing_xyz)
+        return True
+
+    def set_selected_image(self, path):
+        self.lineWidgetImage.setText(path)
+        return self.load_image_metadata(path)
 
     def showFileDialogOutputPath(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select directory')
@@ -174,7 +328,7 @@ class GUI_Restoration(QWidget):
     def showFileDialogModelPath(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select directory')
         if dir_path:
-            self.model_folder.setText(dir_path)
+            logging.info("Selected directory (unused model path handler): %s", dir_path)
             self.settings.setValue("modelPath", dir_path)
 
     def loadSettings(self):
@@ -225,6 +379,9 @@ class GUI_Restoration(QWidget):
         output_path_mean = os.path.join(self.output_folder.text(), f'{stackname}_morphology_mean.xlsx')
         output_path_filtered = os.path.join(self.output_folder.text(), f'{stackname}_morphology_filtered.xlsx')
         output_path_filtered_mean = os.path.join(self.output_folder.text(), f'{stackname}_morphology_filtered_mean.xlsx')
+        N = None
+        output_path_filtered_N = None
+        output_path_filtered_mean_N = None
 
         do_filter_by_N = self.filterNCheckBox.isChecked()
         if do_filter_by_N:
@@ -303,7 +460,7 @@ class GUI_Restoration(QWidget):
 
         tmp_directory = os.path.join(os.path.expanduser("~"), "CMSegmentationToolkit", "test_morph_analysis")
         path_to_test_data = download_testfile_morph_analysis(path_to_download_directory=tmp_directory, overwrite=False)
-        self.lineWidgetImage.setText(path_to_test_data)
+        self.set_selected_image(path_to_test_data)
 
         # set resolution to default values
         self.resolutionZ.setText("0.2")
