@@ -35,6 +35,10 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
                 f"Expected segmentation to be a numpy array or a path to an image, got {type(seg)}"
     assert seg.ndim == 3, "Segmentation must be a 3D array (Z, Y, X)"
 
+    # important to work on a copy so the caller's array is not modified, may be used downstream
+    # (even though in-place may be more memory efficient)
+    seg = seg.copy()
+
     assert isinstance(calculate_tats_density, bool), "calculate_tats_density must be a boolean"
     assert isinstance(debug, bool), "debug must be a boolean"
     assert isinstance(export_distancemap, bool), "export_distancemap must be a boolean"
@@ -72,6 +76,8 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
     dim_z, dim_y, dim_x = seg.shape
     if calculate_tats_density:
         import pyclesperanto_prototype as cle
+        # don't modify wga in-place, in case wga is passed by referenced and used outside
+        wga = wga.copy()
         for z_ix in tqdm(range(dim_z), desc='Processing z slices'):
             wga[z_ix] = white_2d_tophat_pyclesperanto(wga[z_ix], radius=tophat_radius)  # pyclesperanto is faster
 
@@ -116,16 +122,18 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
 
 
     if calculate_tats_density:
-        seg[sitk.GetArrayFromImage(thresholded_wga) > 0] = 0 # set to 0 so that only the distance from the cytoplasm is calculated, excluding tats
-        segmentation_itk = sitk.GetImageFromArray(seg.astype(np.uint32))
-        segmentation_itk.SetSpacing([resolution_zyx_um[2], resolution_zyx_um[1],
+        # Work on a separate copy for TATS — do NOT modify seg or segmentation_itk
+        seg_tats = seg.copy()
+        seg_tats[sitk.GetArrayFromImage(thresholded_wga) > 0] = 0  # exclude TATS from cytoplasm
+        seg_tats_itk = sitk.GetImageFromArray(seg_tats.astype(np.uint32))
+        seg_tats_itk.SetSpacing([resolution_zyx_um[2], resolution_zyx_um[1],
                                      resolution_zyx_um[0]])  # here resolution is [res_x, res_y, res_z]
 
         intensity_stats_filter = sitk.LabelIntensityStatisticsImageFilter()
         intensity_stats_filter.ComputePerimeterOff()
-        intensity_stats_filter.SetNumberOfBins(2048) # increase for a more accurate meedian
+        intensity_stats_filter.SetNumberOfBins(2048)  # increase for a more accurate median
         # mean is calculated as sum / count, not hist
-        intensity_stats_filter.Execute(segmentation_itk, distance_map)
+        intensity_stats_filter.Execute(seg_tats_itk, distance_map)
 
     stats_dict = []
 
@@ -209,22 +217,24 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
         }
 
         if wga is not None:
-            stats.update({
+            wga_stats = {
                 'extramyocyte_wga_positive_space_frac': extramyocyte_wga_positive_space_frac,
-                'threshold_li_val': threshold_val
-            })
+                'threshold_li_val': threshold_li_val,
+            }
+            if calculate_tats_density:
+                wga_stats['threshold_tats_val'] = threshold_val
+            stats.update(wga_stats)
 
         if calculate_tats_density:
             stats.update({
-                'mean': intensity_stats_filter.GetMean(label_val),
-                'median': intensity_stats_filter.GetMedian(label_val),
-                'std_dev': intensity_stats_filter.GetStandardDeviation(label_val),
-                'variance': intensity_stats_filter.GetVariance(label_val),
-                'count': intensity_stats_filter.GetNumberOfPixels(label_val),
-                'min': intensity_stats_filter.GetMinimum(label_val),
-                'max': intensity_stats_filter.GetMaximum(label_val),
-                'cell_volume_um3': intensity_stats_filter.GetPhysicalSize(label_val),
-                'cell_volume_voxels': intensity_stats_filter.GetNumberOfPixels(label_val)
+                'tats_distance_mean': intensity_stats_filter.GetMean(label_val),
+                'tats_distance_median': intensity_stats_filter.GetMedian(label_val),
+                'tats_distance_std_dev': intensity_stats_filter.GetStandardDeviation(label_val),
+                'tats_distance_variance': intensity_stats_filter.GetVariance(label_val),
+                'tats_distance_min': intensity_stats_filter.GetMinimum(label_val),
+                'tats_distance_max': intensity_stats_filter.GetMaximum(label_val),
+                'cytoplasm_volume_um3': intensity_stats_filter.GetPhysicalSize(label_val),
+                'cytoplasm_volume_voxels': intensity_stats_filter.GetNumberOfPixels(label_val),
             })
 
         stats_dict.append(stats)
