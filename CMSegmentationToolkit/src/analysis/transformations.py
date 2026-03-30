@@ -110,9 +110,9 @@ def align_with_pca(mask: Union[sitk.Image, np.ndarray], image: Union[sitk.Image,
     # GetOrientedBoundingBoxSize returns sizes in physical units, not index space, itk uses x y z conversion
     # important that resolution is set correctly in the mask!
     mask_oriented_bounding_box_size = shape_stats.GetOrientedBoundingBoxSize(label)
-    info_dict['cm_bounding_box_size_x_microm'] = f'{1e-3 * mask_oriented_bounding_box_size[0]:.3f}'
-    info_dict['cm_bounding_box_size_y_microm'] = f'{1e-3 * mask_oriented_bounding_box_size[1]:.3f}'
-    info_dict['cm_bounding_box_size_z_microm'] = f'{1e-3 * mask_oriented_bounding_box_size[2]:.3f}'
+    info_dict['cm_bounding_box_size_x_microm'] = f'{mask_oriented_bounding_box_size[0]:.3f}'
+    info_dict['cm_bounding_box_size_y_microm'] = f'{mask_oriented_bounding_box_size[1]:.3f}'
+    info_dict['cm_bounding_box_size_z_microm'] = f'{mask_oriented_bounding_box_size[2]:.3f}'
 
     centroid = shape_stats.GetCentroid(label)
     info_dict['centroid_x'] = f'{centroid[0]:.1f}'
@@ -155,10 +155,12 @@ def align_with_pca(mask: Union[sitk.Image, np.ndarray], image: Union[sitk.Image,
         print(info_dict['orientation_vec_second'])
         print(info_dict['orientation_vec_third'])
 
-    # Buffer(currentLabelId) = Unit vector(currentLabelId) * predefined Buffer_length
-    buffer_first = mat_first * buffer
-    buffer_second = mat_second * buffer
-    buffer_third = mat_third * buffer
+    # Buffer is a voxel count in the resampled (isotropic) image, so the
+    # physical displacement is  buffer * min_spacing  along each axis.
+    buffer_physical = buffer * min_spacing
+    buffer_first = mat_first * buffer_physical
+    buffer_second = mat_second * buffer_physical
+    buffer_third = mat_third * buffer_physical
 
     # Defining new Origin with Buffer
     original_origin = np.array(shape_stats.GetOrientedBoundingBoxOrigin(label))

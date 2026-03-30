@@ -107,10 +107,10 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
     if debug and calculate_tats_density:
         import napari
         viewer = napari.Viewer()
-        viewer.add_image(sitk.GetArrayFromImage(img_itk), name='Image', scale=resolution_zyx_um[::-1])
-        viewer.add_labels(sitk.GetArrayFromImage(thresholded_wga), name='Binary Image', scale=resolution_zyx_um[::-1])
-        viewer.add_labels(sitk.GetArrayFromImage(segmentation_itk), name='Segmentation', scale=resolution_zyx_um[::-1])
-        viewer.add_image(sitk.GetArrayFromImage(distance_map), name='Distance Map', scale=resolution_zyx_um[::-1])
+        viewer.add_image(sitk.GetArrayFromImage(img_itk), name='Image', scale=resolution_zyx_um)
+        viewer.add_labels(sitk.GetArrayFromImage(thresholded_wga), name='Binary Image', scale=resolution_zyx_um)
+        viewer.add_labels(sitk.GetArrayFromImage(segmentation_itk), name='Segmentation', scale=resolution_zyx_um)
+        viewer.add_image(sitk.GetArrayFromImage(distance_map), name='Distance Map', scale=resolution_zyx_um)
         napari.run()
 
 
@@ -137,6 +137,12 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
 
     stats_dict = []
 
+    # Spacing in ITK order (x, y, z) for the cropped masks used by PCA alignment
+    spacing_xyz = [resolution_zyx_um[2], resolution_zyx_um[1], resolution_zyx_um[0]]
+    # After PCA alignment the resampled image is isotropic at min_spacing,
+    # so cross-section voxel counts must be scaled by min_spacing
+    min_spacing = min(resolution_zyx_um)
+
     for label_val in tqdm(labels):
         if label_val == 0: # Skip background label if present
             continue
@@ -145,17 +151,25 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
 
         assert size_x > 0 and size_y > 0 and size_z > 0, f'Invalid size {size_x} {size_y} {size_z}'
         assert start_x >= 0 and start_y >= 0 and start_z >= 0, f'Invalid start {start_x} {start_y} {start_z}'
-        assert (size_z - start_z <= seg.shape[0] and
-                size_y - start_y <= seg.shape[1] and
-                size_x - start_x <= seg.shape[2]), f'Invalid start {start_x} {start_y} {start_z}'
+        assert (start_z + size_z <= seg.shape[0] and
+                start_y + size_y <= seg.shape[1] and
+                start_x + size_x <= seg.shape[2]), \
+            f'Bounding box exceeds image: start ({start_x},{start_y},{start_z}) + size ({size_x},{size_y},{size_z}) vs shape {seg.shape}'
 
         mask_cropped = seg[start_z:start_z + size_z, start_y:start_y + size_y, start_x:start_x + size_x].copy()
         mask_cropped = (mask_cropped == label_val).astype(np.uint8)
 
         border_indicator_cropped = border_indicator[start_z:start_z + size_z, start_y:start_y + size_y, start_x:start_x + size_x].copy()
 
-        rotated_mask_sitk, info_dict, rotated_mask2_sitk = align_with_pca(mask=mask_cropped, label=1, visualise=False, mask2=border_indicator_cropped)
-        # rotated_mask_sitk, info_dict = align_with_pca(mask=mask_cropped, label=1, visualise=False)
+        mask_cropped_sitk = sitk.GetImageFromArray(mask_cropped)
+        mask_cropped_sitk.SetSpacing(spacing_xyz)
+
+        border_indicator_cropped_sitk = sitk.GetImageFromArray(border_indicator_cropped)
+        border_indicator_cropped_sitk.SetSpacing(spacing_xyz)
+
+        rotated_mask_sitk, info_dict, rotated_mask2_sitk = align_with_pca(
+            mask=mask_cropped_sitk, label=1, visualise=False,
+            mask2=border_indicator_cropped_sitk)
 
         avg_second_largest_dim, avg_smallest_dim, avg_area, _ = compute_average_slice_properties(rotated_mask_sitk)
 
@@ -168,7 +182,8 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
         is_touching_border = is_on_border(bbox, size_volume)
         mask_oriented_bounding_box_size = shape_stats_filter.GetOrientedBoundingBoxSize(int(label_val))
 
-        surface_3d_um2 = shape_stats_filter.GetPerimeter(label_val) / (1000 ** 2)  # Convert to um^2
+        # GetPerimeter returns the surface area in physical units (um^2)
+        surface_3d_um2 = shape_stats_filter.GetPerimeter(label_val)
 
         stats = {
             'index': f"{index_prefix}{label_val}",
@@ -190,18 +205,18 @@ def analyze_stack(seg, wga=None, resolution_zyx_um=[0.2, 0.2, 0.2], tophat_radiu
             'cm_bounding_box_size_1': mask_oriented_bounding_box_size[1],
             'cm_bounding_box_size_2': mask_oriented_bounding_box_size[2],
 
-
-            'average_second_largest_dim_um': avg_second_largest_dim * resolution_zyx_um[2],
-            'average_smallest_dim_um': avg_smallest_dim * resolution_zyx_um[2],
+            # After PCA alignment the resampled image is isotropic at min_spacing
+            'average_second_largest_dim_um': avg_second_largest_dim * min_spacing,
+            'average_smallest_dim_um': avg_smallest_dim * min_spacing,
             'average_ratio_dim': avg_second_largest_dim / avg_smallest_dim if avg_smallest_dim > 0 else np.nan,
-            'average_area_um2': avg_area * resolution_zyx_um[1] * resolution_zyx_um[2],
+            'average_area_um2': avg_area * min_spacing * min_spacing,
             'ratio_width_depth': mask_oriented_bounding_box_size[1] / mask_oriented_bounding_box_size[0],
 
-            'average_second_largest_dim_border_um': avg_second_largest_dim_border * resolution_zyx_um[2],
-            'average_smallest_dim_border_um': avg_smallest_dim_border * resolution_zyx_um[2],
+            'average_second_largest_dim_border_um': avg_second_largest_dim_border * min_spacing,
+            'average_smallest_dim_border_um': avg_smallest_dim_border * min_spacing,
             'average_ratio_dim_border': avg_second_largest_dim_border / avg_smallest_dim_border if avg_smallest_dim_border > 0 else np.nan,
             'ratio_skipped_border_slices': ratio,
-            'average_area_border_um2': avg_area_border * resolution_zyx_um[1] * resolution_zyx_um[2],
+            'average_area_border_um2': avg_area_border * min_spacing * min_spacing,
 
             'cell_volume_um3': shape_stats_filter.GetPhysicalSize(label_val),
             'cell_volume_pL': shape_stats_filter.GetPhysicalSize(label_val) / 1000,
