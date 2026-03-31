@@ -52,9 +52,11 @@ class GUI_Restoration(QWidget):
         self.test_data_layout = QHBoxLayout()
         self.download_test_data_button = QPushButton("Download Test Data", self)
         self.download_test_data_button.clicked.connect(self.download_test_data_from_web)
-
+        self.restore_defaults_button = QPushButton("Restore Default Settings", self)
+        self.restore_defaults_button.clicked.connect(self.restoreDefaultSettings)
 
         self.test_data_layout.addWidget(self.download_test_data_button)
+        self.test_data_layout.addWidget(self.restore_defaults_button)
         layout.addLayout(self.test_data_layout)
 
         ## Drop Folder for TIFs Selection
@@ -164,6 +166,8 @@ class GUI_Restoration(QWidget):
         self.filterCheckBox.stateChanged.connect(self.saveSettings)
         self.filterSize.textChanged.connect(self.saveSettings)
         self.filterNCheckBox.stateChanged.connect(self.saveSettings)
+        self.filterNSize.textChanged.connect(self.saveSettings)
+        self.lineWidgetImage.textChanged.connect(self.saveSettings)
 
     def widgetIsAdded(self, object):
         # Check if the button is in the layout
@@ -386,6 +390,14 @@ class GUI_Restoration(QWidget):
         filter_n = self.settings.value("filterNSize")
         if filter_n:
             self.filterNSize.setText(filter_n)
+        filter_by_n = self.settings.value("filterByN")
+        if filter_by_n:
+            self.filterNCheckBox.setChecked(filter_by_n == 'true')
+        image_path = self.settings.value("imagePath")
+        if image_path and os.path.exists(image_path):
+            self.set_selected_image(image_path)
+            self.img_added = True
+            self.startButton.show()
 
 
     def saveSettings(self):
@@ -396,7 +408,34 @@ class GUI_Restoration(QWidget):
         self.settings.setValue("resolutionX", self.resolutionX.text())
         self.settings.setValue("filterByVolume", str(self.filterCheckBox.isChecked()).lower())
         self.settings.setValue("filterSize", self.filterSize.text())
+        self.settings.setValue("filterByN", str(self.filterNCheckBox.isChecked()).lower())
         self.settings.setValue("filterNSize", self.filterNSize.text())
+        self.settings.setValue("imagePath", self.lineWidgetImage.text())
+
+    def restoreDefaultSettings(self):
+        reply = QMessageBox.question(
+            self, "Restore Defaults",
+            "Are you sure you want to restore all settings to their defaults?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        logging.info("Restoring default settings")
+        self.settings.clear()
+
+        self.output_folder.clear()
+        self.resolutionZ.clear()
+        self.resolutionY.clear()
+        self.resolutionX.clear()
+        self.filterCheckBox.setChecked(False)
+        self.filterSize.clear()
+        self.filterNCheckBox.setChecked(True)
+        self.filterNSize.setText("30")
+        self.lineWidgetImage.clear()
+        self.clear_image_metadata()
+        self.img_added = False
+        self.startButton.hide()
 
 
 
