@@ -3,6 +3,8 @@ os.environ["LC_NUMERIC"] = "C"  # Fix locale-dependent decimal parsing in ITK/NR
 
 import logging
 import math
+import subprocess
+import sys
 import SimpleITK as sitk
 
 from PyQt5.QtCore import Qt, QSettings
@@ -38,10 +40,13 @@ class GUI_Restoration(QWidget):
         self.output_folder.setPlaceholderText("Output Folder")
         self.browseButton_output = QPushButton("Select Output Folder", self)
         self.browseButton_output.clicked.connect(self.showFileDialogOutputPath)
+        self.openButton_output = QPushButton("Open Output Folder", self)
+        self.openButton_output.clicked.connect(self.openOutputFolder)
 
         self.output_folder_layout.addWidget(self.output_folder_label)
         self.output_folder_layout.addWidget(self.output_folder)
         self.output_folder_layout.addWidget(self.browseButton_output)
+        self.output_folder_layout.addWidget(self.openButton_output)
         layout.addLayout(self.output_folder_layout)
 
         self.test_data_layout = QHBoxLayout()
@@ -326,6 +331,29 @@ class GUI_Restoration(QWidget):
         if dir_path:
             self.output_folder.setText(dir_path)
             self.settings.setValue("outputPath", dir_path)
+
+    def openOutputFolder(self):
+        folder = self.output_folder.text()
+        if not folder or not os.path.isdir(folder):
+            msg = QMessageBox()
+            msg.setWindowTitle("Error")
+            msg.setText("Output folder does not exist. Please select a valid output folder first.")
+            msg.exec()
+            return
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(folder)
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", folder])
+            else:
+                subprocess.Popen(["xdg-open", folder])
+        except Exception as exc:
+            logging.exception("Failed to open output folder: %s", folder)
+            msg = QMessageBox()
+            msg.setWindowTitle("Error")
+            msg.setText(f"Could not open the output folder:\n{exc}")
+            msg.exec()
 
     def showFileDialogModelPath(self):
         dir_path = QFileDialog.getExistingDirectory(self, 'Select directory')
